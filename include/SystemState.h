@@ -1,0 +1,12 @@
+#ifndef SYSSTATE_H
+#define SYSSTATE_H
+
+enum SystemState {
+    STATE_TIME_SELECT,
+    STATE_COUNTDOWN,
+    STATE_COUNTDOWN_PAUSED,
+    STATE_SLEEP,
+    STATE_COUNTDOWN_FINISHED
+};
+
+#endif
