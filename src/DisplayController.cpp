@@ -1,5 +1,6 @@
 #include "DisplayController.h"
 #include "bitmaps.h"
+#include <EEPROM.h>
 
 #ifdef U8X8_HAVE_HW_SPI
 #include <SPI.h>
@@ -70,6 +71,10 @@ void DisplayController::update(SystemState state, long int timer) {
             drawWifiSelect(timer);
             break;
 
+        case STATE_INFO:
+            drawInfo();
+            break;
+            
         default:
             break;
         }
@@ -149,6 +154,23 @@ void DisplayController::drawWifiSelect(long int position) {
 
         u8g2.sendBuffer();
 }
+
+void DisplayController::drawInfo() {
+    u8g2.clearBuffer();
+    u8g2.setFontMode(1);
+    u8g2.setBitmapMode(1);
+
+    char ssid[32]; // Buffer to store the SSID
+    EEPROM.get(0, ssid); // Read the SSID from EEPROM starting at address 0
+
+    u8g2.setFont(u8g2_font_logisoso18_tr);
+    u8g2.setCursor(0, 20);
+    u8g2.print("SSID:");
+    u8g2.setCursor(0, 40);
+    u8g2.print(ssid);
+
+    u8g2.sendBuffer();
+    }
 
 /**
  * Puts the display into a low-power sleep mode.

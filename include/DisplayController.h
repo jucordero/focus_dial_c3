@@ -15,6 +15,7 @@ public:
     void drawTimeScreen(long int encoder);
     void drawModeSelect(long int encoder);
     void drawWifiSelect(long int position);
+    void drawInfo();
     void sleepScreen();
 
     int pinSCL;

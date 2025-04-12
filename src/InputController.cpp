@@ -100,11 +100,21 @@ void InputController::update(DisplayController& display,
       lastInteractionTimer = millis();
       currentPosition = encoder.getPosition();
       
-      switch (currentTimer%NMODES){
+      switch (currentTimer){
         case 0:
           Serial.println("timer.");
           currentState = STATE_TIMER_SELECT;
           currentTimer=0;
+          break;
+
+        case 1:
+          Serial.println("stopwatch.");
+          currentState = STATE_STOPWATCH_START;
+          break;
+        
+        case 2:
+          Serial.println("settings.");
+          currentState = STATE_SETTINGS;
           break;
 
         case 3:
@@ -120,6 +130,11 @@ void InputController::update(DisplayController& display,
         case 5:
         Serial.println("wifi options.");
           currentState = STATE_WIFI_SELECT;
+          break;
+
+        case 6:
+          Serial.println("info.");
+          currentState = STATE_INFO;
           break;
 
         default:
@@ -251,6 +266,7 @@ void InputController::update(DisplayController& display,
     if (bounce.fell()) {
       Serial.println("Button pressed");
       lastInteractionTimer = millis();
+
       if (currentPosition==0){
         ledRing.startAnimation(LEDRING_RETURN_MAIN_MENU, currentTimer, initialTimer, currentPosition);
         currentState = STATE_MODE_SELECT;
@@ -259,6 +275,7 @@ void InputController::update(DisplayController& display,
         display.animation.start(pulse, 27, true);
         piezo.startMelody(rotaryUpMelody);
       }
+
       else {
         currentState = STATE_PULSE_RUN;
         display.animation.start(play_pause, 19);
@@ -269,6 +286,7 @@ void InputController::update(DisplayController& display,
         positionTimer = millis();
         piezo.startMelody(rotaryUpMelody);
       }
+      
     }
 
     if (millis() - lastInteractionTimer > SLEEP_TIMEOUT)
@@ -350,6 +368,48 @@ void InputController::update(DisplayController& display,
       enterDeepSleep(display, ledRing);
 
     break;
+
+  // ----------------
+  //      STOPWATCH
+  // ----------------
+  case STATE_STOPWATCH_START:
+    if (bounce.fell()) {
+      Serial.println("Button pressed");
+      currentState = STATE_MODE_SELECT;
+      display.animation.start(watch, 19);
+      lastInteractionTimer = millis();
+      piezo.startMelody(rotaryUpMelody);
+    }
+    break;
+
+
+  // ----------------
+  //      SETTINGS
+  // ----------------
+  case STATE_SETTINGS:
+    if (bounce.fell()) {
+      Serial.println("Button pressed");
+      currentState = STATE_MODE_SELECT;
+      display.animation.start(gears, 19);
+      lastInteractionTimer = millis();
+      piezo.startMelody(rotaryUpMelody);
+    }
+    break;
+
+
+  // ----------------
+  //      INFO
+  // ----------------
+  case STATE_INFO:
+    if (bounce.fell()) {
+      Serial.println("Button pressed");
+      currentState = STATE_MODE_SELECT;
+      display.animation.start(info, 19);
+      lastInteractionTimer = millis();
+      piezo.startMelody(rotaryUpMelody);
+    }
+    break;
+
 
   default:
     break;

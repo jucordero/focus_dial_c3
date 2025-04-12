@@ -14,8 +14,12 @@ enum SystemState {
     STATE_PULSE_SELECT,
     STATE_PULSE_RUN,
 
+    STATE_STOPWATCH_START,
+
     STATE_SLEEP,
     STATE_PREPARE_SLEEP,
+    STATE_INFO,
+    STATE_SETTINGS,
 };
 
 #endif
