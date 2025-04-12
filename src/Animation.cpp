@@ -57,7 +57,7 @@ void Animation::update() {
 
     unsigned long currentTime = millis();
 
-    if (currentTime - animationStartTime >= animationDuration) {
+    if (currentTime - animationStartTime >= animationDuration && !loopAnimation) {
         animationRunning = false;
         Serial.println("Animation finished");
         return;
@@ -108,4 +108,8 @@ void Animation::update() {
  */
 bool Animation::isRunning() {
     return animationRunning;
+}
+
+void Animation::stop() {
+    animationRunning = false;
 }

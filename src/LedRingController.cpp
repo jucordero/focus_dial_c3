@@ -2,70 +2,6 @@
 #include "FastLED.h"
 #include "config.h"
 
-int timeScale(long int encoder){
-  int testExp = 1;
-  while (true){
-    if (encoder < 16*testExp)
-      return testExp;
-    else
-      testExp *= 2;
-  }    
-}
-
-void invertRing(const CRGB* ring, CRGB* output, int arraySize) {
-    for (int i = 0; i < arraySize; i++)
-        output[i] = ring[arraySize - i - 1];
-}
-
-void singleColorRingSelecting(long int timer, bool reversed, CRGB color, CRGB* output, int arraySize = 16) {
-  for (int i = 0; i < arraySize; i++)
-    output[i] = CRGB::Black;
-
-  int d = timeScale(timer);
-  int posLeds = timer / d;
-  int remLeds = timer % d;
-
-  for (int i = 0; i < posLeds; i++)
-    output[i] = color;
-
-  output[posLeds] = blend(CRGB::Black, color, remLeds * 255 / d);
-
-  if (reversed) {
-      CRGB temp[arraySize];
-      invertRing(output, temp, arraySize);
-      for (int i = 0; i < arraySize; i++)
-          output[i] = temp[i];
-    }
-}
-
-void singleColorRing(CRGB color, CRGB* output, int arraySize = 16){
-  for (int i = 0; i < arraySize; i++)
-    output[i] = color;
-}
-
-void singleColorRingCounting(long int timer, long int initialTimer, bool reversed, CRGB color, CRGB* output, int arraySize = 16) {
-  for (int i = 0; i < arraySize; i++)
-    output[i] = CRGB::Black;
-
-  long int elapsed = (timer * 160) / initialTimer;
-
-  int posLeds = elapsed / 10;
-  int remLeds = elapsed % 10;
-
-  for(int i = 0; i < posLeds; i++)
-    output[i] = color;
-
-  output[posLeds] = blend(CRGB::Black, color, remLeds * 255 / 10);
-
-  if (reversed) {
-    CRGB temp[arraySize];
-    invertRing(output, temp, arraySize);
-    for (int i = 0; i < arraySize; i++)
-        output[i] = temp[i];
-  }
-}
-
-
 LedRingController::LedRingController(int numLeds, int ledPin, int brightness)
   : numLeds(numLeds),
     ledPin(ledPin),
@@ -86,17 +22,27 @@ void LedRingController::update(SystemState state, long int encoder, long int tim
   else{
     switch (state)
     {
-    case STATE_TIME_SELECT:
+    case STATE_TIMER_SELECT:
       LedRingTimeScreen(timer, encoder);
       break;
-    case STATE_COUNTDOWN:
+    case STATE_PULSE_SELECT:
+      LedRingTimeScreen(timer, encoder);
+      break;
+    case STATE_TIMER_RUN:
       LedRingTimeCountdown(timer, initialTimer, encoder);
       break;
-    case STATE_COUNTDOWN_PAUSED:
+    case STATE_PULSE_RUN:
+      LedRingTimeCountdown(timer, initialTimer, encoder);
+      break;
+    case STATE_TIMER_PAUSED:
       LedRingCountdownPaused(timer, initialTimer, encoder);
       break;
+    case STATE_MODE_SELECT:
+      LedRingModeSelect(abs(encoder));
+      break;
+
     default:
-        break;
+      break;
     }
   }
 }
@@ -115,44 +61,76 @@ void LedRingController::startAnimation(ledRingAnimation anim, long int timer, lo
 
   switch (anim)
   {
-  case PAUSE_COUNTDOWN:
+  case LEDRING_PAUSE_TIMER:
     totalFrames = 100;
     // assign single color ring in counting state to endState
     singleColorRingCounting(timer, initialTimer, encoder < 0, CRGB::Yellow, endState);
     break;
 
-  case START_COUNTDOWN:
+  case LEDRING_START_TIMER:
     totalFrames = 100;
     // assign single color ring in counting state to endState
     singleColorRingCounting(timer, initialTimer, encoder < 0, CRGB::Red, endState);
     break;
 
-  case COUNTDOWN_FINISHED:
+  case LEDRING_FINISHED_TIMER:
     // assign single color ring initialState and endState
     singleColorRing(CRGB::Black, initialState);
     singleColorRing(CRGB::White, endState);
     break;
+
+  case LEDRING_RETURN_MAIN_MENU:
+    totalFrames = 20;  
+    for (int i = abs(encoder)%8*2; i < abs(encoder)%8*2+2; i++){
+      endState[i] = CRGB::Aqua;
+    }
+    break;
+
+  case LEDRING_PREPARE_SLEEP:
+    totalFrames = 100;
+    // assign single color ring in counting state to endState
+    singleColorRing(CRGB::Black, endState);
+    break;
+
+  case LEDRING_MODE_SELECT:
+    totalFrames = 10;
+    singleColorRing(CRGB::Black, endState);
+
+
   default:
     break;
   }
 }
 
 void LedRingController::updateAnimation(){
-  Serial.print("Current frame: ");
-  Serial.println(currentFrame);
+  // Serial.print("Current frame: ");
+  // Serial.println(currentFrame);
   switch (animation)
   {
-  case PAUSE_COUNTDOWN:
+  case LEDRING_PAUSE_TIMER:
     fadeBetweenStates(initialState, endState);
     break;
   
-  case START_COUNTDOWN:
+  case LEDRING_START_TIMER:
     fadeBetweenStates(initialState, endState);
     break;
 
-  case COUNTDOWN_FINISHED:
+  case LEDRING_FINISHED_TIMER:
     pulseBetweenStates(initialState, endState);
     break;
+
+  case LEDRING_RETURN_MAIN_MENU:
+    fadeBetweenStates(initialState, endState);
+    break;
+
+  case LEDRING_PREPARE_SLEEP:
+    fadeBetweenStates(initialState, endState);
+    break;
+  
+  case LEDRING_MODE_SELECT:
+    fadeBetweenStates(initialState, endState);
+    break;
+
   default:
     break;
   }
@@ -213,3 +191,77 @@ void LedRingController::pulseBetweenStates(CRGB* initialState, CRGB* endState){
 
   FastLED.show();
 }
+
+void LedRingController::LedRingModeSelect(long int encoder){
+  FastLED.clear();
+  unsigned int initPos = abs(encoder)%8*2;
+  
+  for (int i = initPos; i < initPos+2; i++){
+    leds[i] = CRGB::Aqua;
+  }
+  FastLED.show();
+}
+
+int LedRingController::timeScale(long int encoder){
+  int testExp = 1;
+  while (true){
+    if (encoder < 16*testExp)
+      return testExp;
+    else
+      testExp *= 2;
+  }    
+}
+
+void LedRingController::invertRing(const CRGB* ring, CRGB* output, int arraySize) {
+  for (int i = 0; i < arraySize; i++)
+      output[i] = ring[arraySize - i - 1];
+}
+
+void LedRingController::singleColorRingSelecting(long int timer, bool reversed, CRGB color, CRGB* output, int arraySize) {
+  for (int i = 0; i < arraySize; i++)
+    output[i] = CRGB::Black;
+
+  int d = timeScale(timer);
+  int posLeds = timer / d;
+  int remLeds = timer % d;
+
+  for (int i = 0; i < posLeds; i++)
+    output[i] = color;
+
+  output[posLeds] = blend(CRGB::Black, color, remLeds * 255 / d);
+
+  if (reversed) {
+      CRGB temp[arraySize];
+      invertRing(output, temp, arraySize);
+      for (int i = 0; i < arraySize; i++)
+          output[i] = temp[i];
+    }
+}
+
+void LedRingController::singleColorRingCounting(long int timer, long int initialTimer, bool reversed, CRGB color, CRGB* output, int arraySize) {
+  for (int i = 0; i < arraySize; i++)
+    output[i] = CRGB::Black;
+
+  long int elapsed = (timer * 160) / initialTimer;
+
+  int posLeds = elapsed / 10;
+  int remLeds = elapsed % 10;
+
+  for(int i = 0; i < posLeds; i++)
+    output[i] = color;
+
+  output[posLeds] = blend(CRGB::Black, color, remLeds * 255 / 10);
+
+  if (reversed) {
+    CRGB temp[arraySize];
+    invertRing(output, temp, arraySize);
+    for (int i = 0; i < arraySize; i++)
+        output[i] = temp[i];
+  }
+}
+
+void LedRingController::singleColorRing(CRGB color, CRGB* output, int arraySize){
+  for (int i = 0; i < arraySize; i++)
+    output[i] = color;
+}
+

@@ -3,10 +3,10 @@
 
 #include <U8g2lib.h>
 
-#define DEFAULT_FRAME_WIDTH 30
-#define DEFAULT_FRAME_HEIGHT 30
+#define DEFAULT_FRAME_WIDTH 64
+#define DEFAULT_FRAME_HEIGHT 64
 #define DEFAULT_FRAME_DELAY 42
-#define BITMAP_LENGTH 120
+#define BITMAP_LENGTH 512
 
 class Animation
 {
@@ -15,6 +15,7 @@ public:
     void start(const unsigned char frames[][BITMAP_LENGTH], int frameCount, bool loop = false, bool reverse = false, unsigned long durationMs = 0, int width = DEFAULT_FRAME_WIDTH, int height = DEFAULT_FRAME_HEIGHT);
     void update();
     bool isRunning();
+    void stop();
 
 private:
     U8G2_SSD1306_128X64_NONAME_F_HW_I2C *u8g2;

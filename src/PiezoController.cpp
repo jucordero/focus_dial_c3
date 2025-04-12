@@ -24,6 +24,10 @@ void PiezoController::startMelody(Melody melody) {
     tone(buzzerPin, melody.notes[currentNote], melody.durations[currentNote]);
 }
 
+void PiezoController::stopMelody() {
+    melodyRunning = false;
+}
+
 void PiezoController::updateMelody() {
     if (millis() - lastNoteTime >= melody.durations[currentNote]) {
         currentNote++;
@@ -31,7 +35,11 @@ void PiezoController::updateMelody() {
             tone(buzzerPin, melody.notes[currentNote]);
         } else {
             noTone(buzzerPin);
-            melodyRunning = false;
+            if (melody.loop) {
+                currentNote = 0;
+                tone(buzzerPin, melody.notes[currentNote], melody.durations[currentNote]);
+            } else 
+                melodyRunning = false;
         }
         lastNoteTime = millis();
     }

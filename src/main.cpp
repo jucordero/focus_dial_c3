@@ -6,8 +6,9 @@
 #include "config.h"
 #include "utils.h"
 #include "pitches.h"
+#include <EEPROM.h>
 
-SystemState currentState = STATE_TIME_SELECT;
+SystemState currentState = STATE_TIMER_SELECT;
 DisplayController displayController(SDA_PIN, SCL_PIN);
 InputController inputController(ENCODER_PIN1, ENCODER_PIN2, ENCODER_SWITCH);
 LedRingController ledRingController(NUM_LEDS, LED_PIN, LED_BRIGHT);
@@ -15,12 +16,16 @@ PiezoController piezoController(BUZZER_PIN);
 
 unsigned long tMemoryInfo = 0;
 
-RTC_DATA_ATTR SystemState previousState = STATE_TIME_SELECT;
+RTC_DATA_ATTR SystemState previousState = STATE_TIMER_SELECT;
 RTC_DATA_ATTR long int previousPosition = 0;
 
 void setup(void) {
 
+    // Initialize EEPROM
+    EEPROM.begin(EEPROM_SIZE);
+
     Serial.begin(115200);
+    if (previousState == STATE_PREPARE_SLEEP) previousState = STATE_MODE_SELECT;
 
     // Check wake-up cause
     esp_sleep_wakeup_cause_t wakeupCause = esp_sleep_get_wakeup_cause();
@@ -29,7 +34,7 @@ void setup(void) {
         currentState = previousState;
     } else {
         Serial.println("Cold start...");
-        currentState = STATE_TIME_SELECT;
+        currentState = STATE_TIMER_SELECT;
     }
 
   displayController.begin();
@@ -56,9 +61,9 @@ void loop(void) {
 
   piezoController.update(inputController.getState());
   
-  if (millis() - tMemoryInfo > 5000) {
-    tMemoryInfo = millis();
-    printHeapInfo();
-    printTaskStackInfo();
-  }
+  // if (millis() - tMemoryInfo > 5000) {
+  //   tMemoryInfo = millis();
+  //   printHeapInfo();
+  //   printTaskStackInfo();
+  // }
 }

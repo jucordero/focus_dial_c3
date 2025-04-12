@@ -35,8 +35,8 @@ public:
     int pinEncoder2;
     int pinButton;
 
-    long int position;
-    long int timer;
+    long int currentPosition;
+    long int currentTimer;
     long int initialTimer;
     unsigned long int countdownTimer;
     unsigned long int positionTimer;        

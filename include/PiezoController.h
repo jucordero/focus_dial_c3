@@ -17,6 +17,7 @@ public:
     bool melodyRunning;
     void startMelody(Melody melody);
     void updateMelody();
+    void stopMelody();  
     Melody melody;
 
     int currentNote;

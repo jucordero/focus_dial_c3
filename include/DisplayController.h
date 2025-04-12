@@ -13,6 +13,8 @@ public:
     void update(SystemState state, long int timer);
 
     void drawTimeScreen(long int encoder);
+    void drawModeSelect(long int encoder);
+    void drawWifiSelect(long int position);
     void sleepScreen();
 
     int pinSCL;

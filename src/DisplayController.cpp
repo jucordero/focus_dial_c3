@@ -42,15 +42,34 @@ void DisplayController::update(SystemState state, long int timer) {
     else { //If animation has finished, resume normal operation.
         switch (state)
         {
-        case STATE_TIME_SELECT:
+        case STATE_TIMER_SELECT:
             drawTimeScreen(timer);
             break;
-        case STATE_COUNTDOWN:
-            drawTimeScreen(timer);
-            break;
-        case STATE_COUNTDOWN_PAUSED:
-            drawTimeScreen(timer);
         
+        case STATE_TIMER_RUN:
+            drawTimeScreen(timer);
+            break;
+
+        case STATE_PULSE_SELECT:
+            drawTimeScreen(timer);
+            break;
+        
+        case STATE_PULSE_RUN:
+            drawTimeScreen(timer);
+            break;
+        
+        case STATE_TIMER_PAUSED:
+            drawTimeScreen(timer);
+            break;
+
+        case STATE_MODE_SELECT:
+            drawModeSelect(timer);
+            break;
+
+        case STATE_WIFI_SELECT:
+            drawWifiSelect(timer);
+            break;
+
         default:
             break;
         }
@@ -85,6 +104,50 @@ void DisplayController::drawTimeScreen(long int timer) {
 
     u8g2.drawXBMP(113, 14, 15, 16, image_download_bits);
     u8g2.sendBuffer();
+}
+
+void DisplayController::drawModeSelect(long int timer) {
+    u8g2.clearBuffer();
+    u8g2.setFontMode(1);
+    u8g2.setBitmapMode(1);
+
+    int position = timer % 4;
+
+    char posStr[2];
+    u8g2.setFont(u8g2_font_logisoso38_tn);
+    sprintf(posStr, "%d", position);
+    u8g2.drawStr(1, 51, posStr);
+
+    u8g2.sendBuffer();
+}
+
+void DisplayController::drawWifiSelect(long int position) {
+    u8g2.clearBuffer();
+    u8g2.setFontMode(1);
+    u8g2.setBitmapMode(1);
+
+    u8g2.setFont(u8g2_font_logisoso18_tr);
+    u8g2.setCursor(0, 20);
+
+    switch (position){
+        case 0:
+            u8g2.print(".. Back");
+            break;
+        case 1:
+            u8g2.print("CocaYJuampi");
+            break;
+        case 2:
+            u8g2.print("Manuel");
+            break;
+        case 3:
+            u8g2.print("SKYIRTWD");
+            break;
+
+        default:
+            break;
+        }
+
+        u8g2.sendBuffer();
 }
 
 /**

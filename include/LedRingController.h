@@ -15,6 +15,7 @@ public:
     void LedRingTimeScreen(long int timer, long int encoder);
     void LedRingTimeCountdown(long int timer, long int initialTimer, long int encoder);
     void LedRingCountdownPaused(long int timer, long int initialTimer, long int encoder);
+    void LedRingModeSelect(long int encoder);
     void LedRingSleep();
 
     int numLeds;
@@ -28,6 +29,12 @@ public:
     void pulseBetweenStates(CRGB* initialState, CRGB* endState);
     ledRingAnimation animation;
 
+    int timeScale(long int encoder);
+    void invertRing(const CRGB* ring, CRGB* output, int arraySize);
+    void singleColorRingSelecting(long int timer, bool reversed, CRGB color, CRGB* output, int arraySize = 16);
+    void singleColorRingCounting(long int timer, long int initialTimer, bool reversed, CRGB color, CRGB* output, int arraySize = 16);
+    void singleColorRing(CRGB color, CRGB* output, int arraySize = 16);
+    
     int totalFrames;
     int currentFrame;
 

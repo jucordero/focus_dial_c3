@@ -6,12 +6,13 @@
 #include "bitmaps.h"
 #include "Melody.h"
 #include "melodies.h"
+#include <EEPROM.h>
 
 InputController::InputController(int pinEncoder1, int pinEncoder2, int pinButton)
     : pinEncoder1(pinEncoder1),
       pinEncoder2(pinEncoder2),
       pinButton(pinButton),
-      currentState(STATE_TIME_SELECT),
+      currentState(STATE_MODE_SELECT),
       lastInteractionTimer(millis()),
       encoder(RotaryEncoder(pinEncoder1, pinEncoder2, RotaryEncoder::LatchMode::TWO03)) {}
 
@@ -27,35 +28,103 @@ void InputController::begin() {
 void InputController::update(DisplayController& display,
                              LedRingController& ledRing,
                              PiezoController& piezo) {
+  
   bounce.update();
-  encoder.tick();
   long newPosition;
   unsigned long int timeNow;
   unsigned long int timeElapsed;
-  newPosition = encoder.getPosition();
+  const char* ssidList1[3] = {"CocaYJuampi", "Manuel", "SKYIRTWD"};
+  const int NMODES = 6;
 
   switch (currentState)
   { 
-  case STATE_TIME_SELECT:
-    if (newPosition != position) {
+
+  case STATE_PREPARE_SLEEP:
+    if (millis() - lastInteractionTimer > 2000)
+      enterDeepSleep(display, ledRing);
+    break;
+
+  // --------------
+  // Mode selection
+  // -------------- 
+  case STATE_MODE_SELECT:    
+    encoder.tick();
+    newPosition = encoder.getPosition();
+
+    if (newPosition != currentPosition) {
       Serial.print("New encoder position: ");
+      if (newPosition < 0)
+      newPosition = NMODES;
+      else if (newPosition > NMODES)
+      newPosition = 0;
+
       Serial.println(newPosition);
-      position = newPosition;
+      encoder.setPosition(newPosition);
+      currentPosition = newPosition;
       lastInteractionTimer = millis();
-      if (position < 0) timer = -position*DELTA_T_CCW;
-      else timer = position*DELTA_T_CW;
       piezo.startMelody(rotaryUpMelody);
+
+      switch(currentPosition) {
+        case 0:
+          display.animation.start(hourglass, 27, true);
+          break;
+        case 1:
+          display.animation.start(watch, 27, true);
+          break;
+        case 2:
+          display.animation.start(gears, 27, true);
+          break;
+        case 3:
+          display.animation.start(eye, 27, true);
+          break;
+        case 4:
+          display.animation.start(pulse, 27, true);
+          break;
+        case 5:
+          display.animation.start(wifi, 27, true);
+          break;
+        case 6:
+          display.animation.start(info, 27, true);
+          break;
+      }
     }
 
+    currentTimer = currentPosition;
+
     if (bounce.fell()) {
-      Serial.println("Button pressed");
-      currentState = STATE_COUNTDOWN;
-      display.animation.start(animation_tick, 20); // Set the countdown animation to start
-      initialTimer = timer;
-      ledRing.startAnimation(START_COUNTDOWN, timer, initialTimer, position);
+      ledRing.startAnimation(LEDRING_MODE_SELECT, currentTimer, initialTimer, currentPosition);
+      Serial.print("Button pressed. Entering ");
+      display.animation.stop();
+      encoder.setPosition(0);
+      piezo.startMelody(rotaryUpMelody);
       lastInteractionTimer = millis();
-      countdownTimer = millis();
-      positionTimer = millis();
+      currentPosition = encoder.getPosition();
+      
+      switch (currentTimer%NMODES){
+        case 0:
+          Serial.println("timer.");
+          currentState = STATE_TIMER_SELECT;
+          currentTimer=0;
+          break;
+
+        case 3:
+        Serial.println("sleep.");
+          currentState = STATE_PREPARE_SLEEP;
+          break;
+
+        case 4:
+        Serial.println("pulse.");
+          currentState = STATE_PULSE_SELECT;
+          break;
+
+        case 5:
+        Serial.println("wifi options.");
+          currentState = STATE_WIFI_SELECT;
+          break;
+
+        default:
+          break;
+      }
     }
 
     if (millis() - lastInteractionTimer > SLEEP_TIMEOUT)
@@ -63,65 +132,223 @@ void InputController::update(DisplayController& display,
 
     break;
 
-  case STATE_COUNTDOWN:
+  // ----------------
+  //      TIMER
+  // ----------------
+  case STATE_TIMER_SELECT:
+    encoder.tick();
+    newPosition = encoder.getPosition();
+    if (newPosition != currentPosition) {
+      Serial.print("New encoder position: ");
+      Serial.println(newPosition);
+      currentPosition = newPosition;
+      lastInteractionTimer = millis();
+      if (currentPosition < 0) currentTimer = -currentPosition*DELTA_T_CCW;
+      else currentTimer = currentPosition*DELTA_T_CW;
+      piezo.startMelody(rotaryUpMelody);
+    }
+
+    if (bounce.fell()) {
+      Serial.println("Button pressed");
+      lastInteractionTimer = millis();
+
+      if (currentPosition==0){
+        ledRing.startAnimation(LEDRING_RETURN_MAIN_MENU, currentTimer, initialTimer, currentPosition);
+        currentState = STATE_MODE_SELECT;
+        encoder.setPosition(0);
+      }
+      else {
+        currentState = STATE_TIMER_RUN;
+        display.animation.start(play_pause, 19); // Set the countdown animation to start
+        initialTimer = currentTimer;
+        ledRing.startAnimation(LEDRING_START_TIMER, currentTimer, initialTimer, currentPosition);
+        countdownTimer = millis();
+        positionTimer = millis();
+      }
+    }
+
+    if (millis() - lastInteractionTimer > SLEEP_TIMEOUT)
+      enterDeepSleep(display, ledRing);
+
+    break;
+
+  case STATE_TIMER_RUN:  
     timeNow = millis();
     timeElapsed = timeNow - countdownTimer;
-    timer = timer - timeElapsed;
+    currentTimer = currentTimer - timeElapsed;
     countdownTimer = timeNow;
 
-    if (timer < 0){
-      currentState = STATE_COUNTDOWN_FINISHED;
+    if (currentTimer < 0){
+      currentState = STATE_TIMER_FINISHED;
       // position = 0;
-      ledRing.startAnimation(COUNTDOWN_FINISHED, timer, initialTimer, position);
-      piezo.startMelody(startupMelody);
+      ledRing.startAnimation(LEDRING_FINISHED_TIMER, currentTimer, initialTimer, currentPosition);
+      display.animation.start(ring_alarm, 27, true); 
+      piezo.startMelody(loopBeep);
       lastInteractionTimer = millis();
     }
 
     if (bounce.fell()) {
       Serial.println("Button pressed");
-      currentState = STATE_COUNTDOWN_PAUSED;
-      display.animation.start(animation_tick, 20); // Set the countdown animation to start
-      ledRing.startAnimation(PAUSE_COUNTDOWN, timer, initialTimer, position);
+      currentState = STATE_TIMER_PAUSED;
+      display.animation.start(play_pause, 19, false, true); // Set the countdown animation to start
+      ledRing.startAnimation(LEDRING_PAUSE_TIMER, currentTimer, initialTimer, currentPosition);
       lastInteractionTimer = millis();
     }
     break;
 
-  case STATE_COUNTDOWN_PAUSED:
-      if (bounce.fell()) {
+  case STATE_TIMER_PAUSED:  
+    if (bounce.fell()) {
       Serial.println("Button pressed");
-      currentState = STATE_COUNTDOWN;
-      display.animation.start(animation_tick, 20); // Set the countdown animation to start
-      ledRing.startAnimation(START_COUNTDOWN, timer, initialTimer, position);
+      currentState = STATE_TIMER_RUN;
+      display.animation.start(play_pause, 19);
+      ledRing.startAnimation(LEDRING_START_TIMER, currentTimer, initialTimer, currentPosition);
       lastInteractionTimer = millis();
       countdownTimer = millis();
     }
     break;
   
-  case STATE_COUNTDOWN_FINISHED:
-    if (bounce.fell()) {
+  case STATE_TIMER_FINISHED:
+    encoder.tick();
+    newPosition = encoder.getPosition();
+
+    if (bounce.fell() || newPosition != currentPosition) {
       Serial.println("Button pressed");
-      currentState = STATE_TIME_SELECT;
+      currentState = STATE_TIMER_SELECT;
       ledRing.animationRunning = false;
-      position = newPosition;
-      if (position < 0) timer = -position*DELTA_T_CCW;
-      else timer = position*DELTA_T_CW;
-      lastInteractionTimer = millis();
-    }
-    
-    if (newPosition != position) {
-      currentState = STATE_TIME_SELECT;
-      ledRing.animationRunning = false;
-      Serial.print("New encoder position: ");
-      Serial.println(newPosition);
-      position = newPosition;
-      if (position < 0) timer = -position*DELTA_T_CCW;
-      else timer = position*DELTA_T_CW;
+      display.animation.stop();
+      currentPosition = newPosition;
+      if (currentPosition < 0) currentTimer = -currentPosition*DELTA_T_CCW;
+      else currentTimer = currentPosition*DELTA_T_CW;
+      piezo.startMelody(rotaryUpMelody);
       lastInteractionTimer = millis();
     }
 
     if (millis() - lastInteractionTimer > SLEEP_TIMEOUT)
       enterDeepSleep(display, ledRing);
       
+    break;
+
+
+  // ----------------
+  //      PULSE
+  // ----------------
+  case STATE_PULSE_SELECT:
+    encoder.tick();
+    newPosition = encoder.getPosition();
+
+    if (newPosition != currentPosition) {
+      Serial.print("New encoder position: ");
+      Serial.println(newPosition);
+      currentPosition = newPosition;
+      lastInteractionTimer = millis();
+      if (currentPosition < 0) currentTimer = -currentPosition*DELTA_T_CCW;
+      else currentTimer = currentPosition*DELTA_T_CW;
+      piezo.startMelody(rotaryUpMelody);
+    }
+
+    currentTimer = currentPosition;
+
+    if (bounce.fell()) {
+      Serial.println("Button pressed");
+      lastInteractionTimer = millis();
+      if (currentPosition==0){
+        ledRing.startAnimation(LEDRING_RETURN_MAIN_MENU, currentTimer, initialTimer, currentPosition);
+        currentState = STATE_MODE_SELECT;
+        encoder.setPosition(4);
+        currentPosition = encoder.getPosition();
+        display.animation.start(pulse, 27, true);
+        piezo.startMelody(rotaryUpMelody);
+      }
+      else {
+        currentState = STATE_PULSE_RUN;
+        display.animation.start(play_pause, 19);
+        initialTimer = currentTimer;
+        ledRing.startAnimation(LEDRING_START_TIMER, currentTimer, initialTimer, currentPosition);
+        lastInteractionTimer = millis();
+        countdownTimer = millis();
+        positionTimer = millis();
+        piezo.startMelody(rotaryUpMelody);
+      }
+    }
+
+    if (millis() - lastInteractionTimer > SLEEP_TIMEOUT)
+      enterDeepSleep(display, ledRing);
+
+    break;
+
+  case STATE_PULSE_RUN:
+    timeNow = millis();
+    timeElapsed = timeNow - countdownTimer;
+    currentTimer = currentTimer - timeElapsed;
+    countdownTimer = timeNow;
+
+    if (currentTimer < 0){
+      Serial.println("Pulse timer finished");
+      currentTimer += initialTimer;
+      piezo.startMelody(rotaryUpMelody);
+    }
+
+    if (bounce.fell()) {
+      Serial.println("Button pressed");
+      currentState = STATE_PULSE_SELECT;
+      if (currentPosition < 0) currentTimer = -currentPosition*DELTA_T_CCW;
+      else currentTimer = currentPosition*DELTA_T_CW;
+      display.animation.start(play_pause, 19, false, true);
+      piezo.startMelody(rotaryUpMelody);
+      lastInteractionTimer = millis();
+    }
+
+    break;
+
+  // ----------------
+  //      WIFI
+  // ----------------
+  
+  case STATE_WIFI_SELECT:
+
+    encoder.tick();
+    newPosition = encoder.getPosition();
+
+    if (newPosition != currentPosition) {
+      Serial.print("New encoder position in wifi select: ");
+      
+      if (newPosition < 0)
+      newPosition = 3;
+      else if (newPosition > 3)
+      newPosition = 0;
+      
+      Serial.println(newPosition);
+
+      currentPosition = newPosition;
+      encoder.setPosition(newPosition);
+      
+      lastInteractionTimer = millis();
+      piezo.startMelody(rotaryUpMelody);
+    }
+    currentTimer = currentPosition;
+
+    if (bounce.fell()) {
+      Serial.println("Button pressed");
+      lastInteractionTimer = millis();
+      piezo.startMelody(rotaryUpMelody);
+
+      if (currentPosition==0){
+        ledRing.startAnimation(LEDRING_RETURN_MAIN_MENU, currentTimer, initialTimer, currentPosition);
+        currentState = STATE_MODE_SELECT;
+        encoder.setPosition(5);
+        currentPosition = encoder.getPosition();
+        display.animation.start(wifi, 27, true);
+        EEPROM.commit();
+      }
+
+      else {
+        EEPROM.writeString(EEPROM_SSID_ADDR, ssidList1[currentPosition-1]);
+      }
+    }
+
+    if (millis() - lastInteractionTimer > SLEEP_TIMEOUT)
+      enterDeepSleep(display, ledRing);
+
     break;
 
   default:
@@ -134,11 +361,11 @@ SystemState InputController::getState() {
 }
 
 long int InputController::getPosition() {
-  return position;
+  return currentPosition;
 }
 
 long int InputController::getTimer() {
-  return timer;
+  return currentTimer;
 }
 
 long int InputController::getInitialTimer() {
@@ -148,11 +375,12 @@ long int InputController::getInitialTimer() {
 void InputController::enterDeepSleep(DisplayController& display, LedRingController& ledRing) {
     Serial.println("Saving state and entering deep sleep...");
 
+    Serial.end();
     display.sleepScreen();
     ledRing.LedRingSleep();
 
     previousState = currentState;
-    previousPosition = position;
+    previousPosition = currentPosition;
     // Configure GPIOs as wake-up sources
     esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
 

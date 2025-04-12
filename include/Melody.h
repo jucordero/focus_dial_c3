@@ -8,6 +8,7 @@
 struct Melody {
     std::vector<int> notes;
     std::vector<int> durations;
+    bool loop;
 };
 
 #endif
