@@ -261,8 +261,6 @@ void InputController::update(DisplayController& display,
       piezo.startMelody(rotaryUpMelody);
     }
 
-    currentTimer = currentPosition;
-
     if (bounce.fell()) {
       Serial.println("Button pressed");
       lastInteractionTimer = millis();
