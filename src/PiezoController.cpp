@@ -4,11 +4,13 @@
 PiezoController::PiezoController(int buzzerPin)
     : buzzerPin(buzzerPin),
       melodyRunning(false),
-      currentNote(0)
+      currentNote(0),
+      muted(muted)
       {}
 
-void PiezoController::begin() {
+void PiezoController::begin(bool muted) {
     pinMode(buzzerPin, OUTPUT);
+    this->muted = muted;
 }
 
 void PiezoController::update(SystemState state) {
@@ -21,7 +23,9 @@ void PiezoController::startMelody(Melody melody) {
     melodyRunning = true;
     lastNoteTime = millis();
     currentNote = 0;
-    tone(buzzerPin, melody.notes[currentNote], melody.durations[currentNote]);
+
+    if (!muted)
+        tone(buzzerPin, melody.notes[currentNote], melody.durations[currentNote]);
 }
 
 void PiezoController::stopMelody() {
@@ -32,12 +36,14 @@ void PiezoController::updateMelody() {
     if (millis() - lastNoteTime >= melody.durations[currentNote]) {
         currentNote++;
         if (currentNote < melody.notes.size()) {
-            tone(buzzerPin, melody.notes[currentNote]);
+            if (!muted)
+                tone(buzzerPin, melody.notes[currentNote]);
         } else {
             noTone(buzzerPin);
             if (melody.loop) {
                 currentNote = 0;
-                tone(buzzerPin, melody.notes[currentNote], melody.durations[currentNote]);
+                if (!muted)
+                    tone(buzzerPin, melody.notes[currentNote], melody.durations[currentNote]);
             } else 
                 melodyRunning = false;
         }

@@ -28,6 +28,33 @@ void InputController::begin() {
 void InputController::update(DisplayController& display,
                              LedRingController& ledRing,
                              PiezoController& piezo) {
+
+  if (firstTime) {
+    switch(previousPosition) {
+        case 0:
+          display.animation.start(hourglass, 27, true);
+          break;
+        case 1:
+          display.animation.start(watch, 27, true);
+          break;
+        case 2:
+          display.animation.start(gears, 27, true);
+          break;
+        case 3:
+          display.animation.start(eye, 27, true);
+          break;
+        case 4:
+          display.animation.start(pulse, 27, true);
+          break;
+        case 5:
+          display.animation.start(wifi, 27, true);
+          break;
+        case 6:
+          display.animation.start(info, 27, true);
+          break;
+      }
+    firstTime = false;
+  }
   
   bounce.update();
   long newPosition;
@@ -36,8 +63,11 @@ void InputController::update(DisplayController& display,
   const char* ssidList1[3] = {"CocaYJuampi", "Manuel", "SKYIRTWD"};
   const int NMODES = 6;
 
-  switch (currentState)
-  { 
+  switch (currentState){ 
+
+  // ----------------
+  //      SLEEP
+  // ----------------
 
   case STATE_PREPARE_SLEEP:
     if (millis() - lastInteractionTimer > 2000)
@@ -92,7 +122,6 @@ void InputController::update(DisplayController& display,
     currentTimer = currentPosition;
 
     if (bounce.fell()) {
-      ledRing.startAnimation(LEDRING_MODE_SELECT, currentTimer, initialTimer, currentPosition);
       Serial.print("Button pressed. Entering ");
       display.animation.stop();
       encoder.setPosition(0);
@@ -103,37 +132,45 @@ void InputController::update(DisplayController& display,
       switch (currentTimer){
         case 0:
           Serial.println("timer.");
+          ledRing.startAnimation(LEDRING_MODE_SELECT, currentTimer, initialTimer, currentPosition);
           currentState = STATE_TIMER_SELECT;
           currentTimer=0;
           break;
 
         case 1:
           Serial.println("stopwatch.");
+          ledRing.startAnimation(LEDRING_MODE_SELECT, currentTimer, initialTimer, currentPosition);
           currentState = STATE_STOPWATCH_START;
           break;
         
         case 2:
           Serial.println("settings.");
+          ledRing.startAnimation(LEDRING_MODE_SELECT, currentTimer, initialTimer, currentPosition);
           currentState = STATE_SETTINGS;
           break;
 
         case 3:
         Serial.println("sleep.");
+        
+          ledRing.startAnimation(LEDRING_PREPARE_SLEEP, currentTimer, initialTimer, currentPosition);
           currentState = STATE_PREPARE_SLEEP;
           break;
 
         case 4:
         Serial.println("pulse.");
+          ledRing.startAnimation(LEDRING_MODE_SELECT, currentTimer, initialTimer, currentPosition);
           currentState = STATE_PULSE_SELECT;
           break;
 
         case 5:
         Serial.println("wifi options.");
+          ledRing.startAnimation(LEDRING_MODE_SELECT, currentTimer, initialTimer, currentPosition);
           currentState = STATE_WIFI_SELECT;
           break;
 
         case 6:
           Serial.println("info.");
+          ledRing.startAnimation(LEDRING_MODE_SELECT, currentTimer, initialTimer, currentPosition);
           currentState = STATE_INFO;
           break;
 
@@ -171,6 +208,10 @@ void InputController::update(DisplayController& display,
         ledRing.startAnimation(LEDRING_RETURN_MAIN_MENU, currentTimer, initialTimer, currentPosition);
         currentState = STATE_MODE_SELECT;
         encoder.setPosition(0);
+        display.animation.start(hourglass, 27, true);
+        currentPosition = encoder.getPosition();
+        piezo.startMelody(rotaryUpMelody);
+
       }
       else {
         currentState = STATE_TIMER_RUN;
@@ -266,7 +307,7 @@ void InputController::update(DisplayController& display,
       lastInteractionTimer = millis();
 
       if (currentPosition==0){
-        ledRing.startAnimation(LEDRING_RETURN_MAIN_MENU, currentTimer, initialTimer, currentPosition);
+        ledRing.startAnimation(LEDRING_RETURN_MAIN_MENU, currentTimer, initialTimer, 4);
         currentState = STATE_MODE_SELECT;
         encoder.setPosition(4);
         currentPosition = encoder.getPosition();
@@ -349,7 +390,7 @@ void InputController::update(DisplayController& display,
       piezo.startMelody(rotaryUpMelody);
 
       if (currentPosition==0){
-        ledRing.startAnimation(LEDRING_RETURN_MAIN_MENU, currentTimer, initialTimer, currentPosition);
+        ledRing.startAnimation(LEDRING_RETURN_MAIN_MENU, currentTimer, initialTimer, 5);
         currentState = STATE_MODE_SELECT;
         encoder.setPosition(5);
         currentPosition = encoder.getPosition();
@@ -374,8 +415,10 @@ void InputController::update(DisplayController& display,
     if (bounce.fell()) {
       Serial.println("Button pressed");
       currentState = STATE_MODE_SELECT;
-      display.animation.start(watch, 19);
+      display.animation.start(watch, 27, true);
       lastInteractionTimer = millis();
+      encoder.setPosition(1);
+      currentPosition = encoder.getPosition();
       piezo.startMelody(rotaryUpMelody);
     }
     break;
@@ -385,13 +428,39 @@ void InputController::update(DisplayController& display,
   //      SETTINGS
   // ----------------
   case STATE_SETTINGS:
-    if (bounce.fell()) {
-      Serial.println("Button pressed");
-      currentState = STATE_MODE_SELECT;
-      display.animation.start(gears, 19);
+
+    encoder.tick();
+    newPosition = encoder.getPosition();
+    
+    if (newPosition != currentPosition) {
+      Serial.print("New encoder position: ");
+      Serial.println(newPosition);
+      currentPosition = newPosition;
+      encoder.setPosition(newPosition);
       lastInteractionTimer = millis();
       piezo.startMelody(rotaryUpMelody);
     }
+
+    currentTimer = currentPosition;
+
+    if (bounce.fell()) {
+      Serial.println("Button pressed");
+      currentState = STATE_MODE_SELECT;
+      
+      piezo.muted = newPosition%2 == 0; // Toggle piezo mute state
+      EEPROM.write(EEPROM_PIEZO_MUTE_ADDR, piezo.muted ? 1 : 0);
+      EEPROM.commit();
+
+      display.animation.start(gears, 27, true);
+      lastInteractionTimer = millis();
+      encoder.setPosition(2);
+      currentPosition = encoder.getPosition();
+      piezo.startMelody(rotaryUpMelody);
+
+      
+    }
+
+
     break;
 
 
@@ -402,8 +471,10 @@ void InputController::update(DisplayController& display,
     if (bounce.fell()) {
       Serial.println("Button pressed");
       currentState = STATE_MODE_SELECT;
-      display.animation.start(info, 19);
+      display.animation.start(info, 27, true);
       lastInteractionTimer = millis();
+      encoder.setPosition(6);
+      currentPosition = encoder.getPosition();
       piezo.startMelody(rotaryUpMelody);
     }
     break;

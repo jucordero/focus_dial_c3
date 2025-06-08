@@ -52,6 +52,7 @@ void LedRingController::startAnimation(ledRingAnimation anim, long int timer, lo
   animationRunning = true;
   animation = anim;
   currentFrame = 0;
+  animationStartTime = millis();
 
   // Populate initialState with the current LED state
   for (int i = 0; i < numLeds; i++) {
@@ -80,14 +81,14 @@ void LedRingController::startAnimation(ledRingAnimation anim, long int timer, lo
     break;
 
   case LEDRING_RETURN_MAIN_MENU:
-    totalFrames = 20;  
+    totalFrames = 10;  
     for (int i = abs(encoder)%8*2; i < abs(encoder)%8*2+2; i++){
       endState[i] = CRGB::Aqua;
     }
     break;
 
   case LEDRING_PREPARE_SLEEP:
-    totalFrames = 100;
+    totalFrames = 20;
     // assign single color ring in counting state to endState
     singleColorRing(CRGB::Black, endState);
     break;
@@ -95,6 +96,7 @@ void LedRingController::startAnimation(ledRingAnimation anim, long int timer, lo
   case LEDRING_MODE_SELECT:
     totalFrames = 10;
     singleColorRing(CRGB::Black, endState);
+    break;
 
 
   default:
@@ -105,6 +107,12 @@ void LedRingController::startAnimation(ledRingAnimation anim, long int timer, lo
 void LedRingController::updateAnimation(){
   // Serial.print("Current frame: ");
   // Serial.println(currentFrame);
+
+  if (millis() - lastFrameTime < frameDelay){
+    Serial.println("Frame delay not reached");
+    return;
+  }
+  lastFrameTime = millis();
   switch (animation)
   {
   case LEDRING_PAUSE_TIMER:
@@ -173,13 +181,15 @@ void LedRingController::LedRingSleep(){
 
 
 void LedRingController::fadeBetweenStates(CRGB* initialState, CRGB* endState){
-
+  Serial.print("Fading between states, current frame: ");
+  Serial.println(currentFrame);
   FastLED.clear();
+
   float t = (float) currentFrame / totalFrames;
   for (int i = 0; i < numLeds; i++)
     leds[i] = blend(initialState[i], endState[i], t*255);
   currentFrame++;
-  if (currentFrame >= totalFrames)
+  if (currentFrame > totalFrames)
     animationRunning = false;
   FastLED.show();
 }

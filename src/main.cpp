@@ -23,6 +23,9 @@ void setup(void) {
 
     // Initialize EEPROM
     EEPROM.begin(EEPROM_SIZE);
+    // Read muted state from EEPROM
+    bool isMuted = EEPROM.read(EEPROM_PIEZO_MUTE_ADDR);
+
 
     Serial.begin(115200);
     if (previousState == STATE_PREPARE_SLEEP) previousState = STATE_MODE_SELECT;
@@ -40,7 +43,8 @@ void setup(void) {
   displayController.begin();
   inputController.begin();
   ledRingController.begin();
-  piezoController.begin();
+  piezoController.begin(isMuted);
+
 }
 
 void loop(void) {

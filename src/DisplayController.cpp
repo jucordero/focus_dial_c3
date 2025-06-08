@@ -71,6 +71,10 @@ void DisplayController::update(SystemState state, long int timer) {
             drawWifiSelect(timer);
             break;
 
+        case STATE_SETTINGS:
+            drawSettings(timer);
+            break;
+
         case STATE_INFO:
             drawInfo();
             break;
@@ -108,6 +112,8 @@ void DisplayController::drawTimeScreen(long int timer) {
     u8g2.drawStr(112, 51, tensOfSecondsStr);
 
     u8g2.drawXBMP(113, 14, 15, 16, image_download_bits);
+
+    drawBatteryLevel();
     u8g2.sendBuffer();
 }
 
@@ -155,6 +161,26 @@ void DisplayController::drawWifiSelect(long int position) {
         u8g2.sendBuffer();
 }
 
+void DisplayController::drawSettings(long int position) {
+    u8g2.clearBuffer();
+    u8g2.setFontMode(1);
+    u8g2.setBitmapMode(1);
+
+    u8g2.setFont(u8g2_font_logisoso18_tr);
+    u8g2.setCursor(0, 20);
+    u8g2.print("Settings");
+
+    if (position % 2 == 0) {
+        u8g2.setCursor(0, 40);
+        u8g2.print("muted");
+    } else {
+        u8g2.setCursor(0, 40);
+        u8g2.print("not muted");
+    }    
+
+    u8g2.sendBuffer();
+}
+
 void DisplayController::drawInfo() {
     u8g2.clearBuffer();
     u8g2.setFontMode(1);
@@ -181,4 +207,22 @@ void DisplayController::sleepScreen(){
     u8g2.setPowerSave(1);
     u8g2.clearBuffer();
     u8g2.sendBuffer();
+}
+
+void DisplayController::drawBatteryLevel() {
+
+    int level = analogRead(A0);
+    u8g2.setFont(u8g2_font_blipfest_07_tn);
+    char levelStr[6];
+    snprintf(levelStr, sizeof(levelStr), "%d", level);
+    u8g2.drawStr(0, 8, levelStr);    
+
+    // // Draw the battery body
+    // u8g2.drawFrame(1, 1, 15, 10);
+    // u8g2.drawFrame(16, 3, 2, 6);
+
+    // // Draw the battery level based on the level parameter
+    // for (int i = 0; i < level; i++)
+    //     u8g2.drawFrame(3 + (i * 3), 3, 2, 6); // Draw empty rectangle for remaining capacity
+
 }

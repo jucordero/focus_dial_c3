@@ -17,7 +17,11 @@
 #define ENCODER_PIN2 4
 #define ENCODER_SWITCH 2
 
+// Buzzer
 #define BUZZER_PIN 1
+
+// Battery
+#define BATTERY_PIN 0
 
 // System config
 #define SCREEN_TIME 10000
@@ -37,5 +41,7 @@ extern RTC_DATA_ATTR long int previousPosition;
 #define EEPROM_PASSWORD_ADDR (EEPROM_SSID_ADDR + EEPROM_SSID_SIZE)
 #define EEPROM_BRIGHTNESS_SIZE sizeof(int)
 #define EEPROM_BRIGHTNESS_ADDR (EEPROM_PASSWORD_ADDR + EEPROM_PASSWORD_ADDR)
+#define EEPROM_PIEZO_MUTE_SIZE sizeof(bool)
+#define EEPROM_PIEZO_MUTE_ADDR (EEPROM_BRIGHTNESS_ADDR + EEPROM_BRIGHTNESS_SIZE)
 
 #endif

@@ -37,7 +37,10 @@ public:
     
     int totalFrames;
     int currentFrame;
-
+    int animationDuration;
+    int animationStartTime;
+    int lastFrameTime;
+    int frameDelay = 5;
 
 private:
     CRGB* leds; // Dynamically allocated LED array

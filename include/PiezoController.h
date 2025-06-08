@@ -8,7 +8,7 @@ class PiezoController {
 public:
     PiezoController(int buzzerPin);
 
-    void begin();
+    void begin(bool muted = false);
     void update(SystemState state);
 
     int buzzerPin;
@@ -19,6 +19,8 @@ public:
     void updateMelody();
     void stopMelody();  
     Melody melody;
+
+    bool muted = false;
 
     int currentNote;
 };

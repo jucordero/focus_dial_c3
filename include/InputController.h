@@ -45,6 +45,7 @@ public:
 private:
     SystemState currentState;
     Bounce bounce = Bounce();
+    bool firstTime = true;
 };
 
 #endif
