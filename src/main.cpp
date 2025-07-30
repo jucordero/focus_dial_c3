@@ -1,8 +1,9 @@
 #include <Arduino.h>
 #include "DisplayController.h"
-#include "InputController.h"
+#include "StateController.h"
 #include "LedRingController.h"
 #include "PiezoController.h"
+#include "InputController.h"
 #include "config.h"
 #include "utils.h"
 #include "pitches.h"
@@ -10,9 +11,10 @@
 
 SystemState currentState = STATE_TIMER_SELECT;
 DisplayController displayController(SDA_PIN, SCL_PIN);
-InputController inputController(ENCODER_PIN1, ENCODER_PIN2, ENCODER_SWITCH);
+StateController stateController;
 LedRingController ledRingController(NUM_LEDS, LED_PIN, LED_BRIGHT);
 PiezoController piezoController(BUZZER_PIN);
+InputController inputController(ENCODER_PIN1, ENCODER_PIN2, SWITCH_PIN);
 
 unsigned long tMemoryInfo = 0;
 
@@ -25,7 +27,6 @@ void setup(void) {
     EEPROM.begin(EEPROM_SIZE);
     // Read muted state from EEPROM
     bool isMuted = EEPROM.read(EEPROM_PIEZO_MUTE_ADDR);
-
 
     Serial.begin(115200);
     if (previousState == STATE_PREPARE_SLEEP) previousState = STATE_MODE_SELECT;
@@ -41,29 +42,36 @@ void setup(void) {
     }
 
   displayController.begin();
-  inputController.begin();
   ledRingController.begin();
   piezoController.begin(isMuted);
+  inputController.begin();
 
 }
 
 void loop(void) {
 
-  inputController.update(displayController, ledRingController, piezoController);
+  inputController.update();
+
+  stateController.update(
+    displayController,
+    ledRingController,
+    piezoController,
+    inputController
+    );
 
   ledRingController.update(
-    currentState = inputController.getState(),
-    inputController.getPosition(),
-    inputController.getTimer(),
-    inputController.getInitialTimer()
+    currentState = stateController.getState(),
+    stateController.getPosition(),
+    stateController.getTimer(),
+    stateController.getInitialTimer()
     );
   
   displayController.update(
-    currentState = inputController.getState(),
-    inputController.getTimer()
+    currentState = stateController.getState(),
+    stateController.getTimer()
     );
 
-  piezoController.update(inputController.getState());
+  piezoController.update(stateController.getState());
   
   // if (millis() - tMemoryInfo > 5000) {
   //   tMemoryInfo = millis();

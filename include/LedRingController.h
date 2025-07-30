@@ -15,6 +15,7 @@ public:
     void LedRingTimeScreen(long int timer, long int encoder);
     void LedRingTimeCountdown(long int timer, long int initialTimer, long int encoder);
     void LedRingCountdownPaused(long int timer, long int initialTimer, long int encoder);
+    void LedRingStopwatchRun(long int timer);
     void LedRingModeSelect(long int encoder);
     void LedRingSleep();
 

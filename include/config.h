@@ -2,6 +2,7 @@
 #define CONFIG_H
 
 #include <Arduino.h>
+#include "SystemState.h"
 
 // OLED screen
 #define SDA_PIN  8
@@ -15,7 +16,10 @@
 // Encoder
 #define ENCODER_PIN1 3
 #define ENCODER_PIN2 4
-#define ENCODER_SWITCH 2
+
+// Switch
+#define SWITCH_PIN 2
+#define BUTTON_LONG_PRESS_THRESHOLD 1250
 
 // Buzzer
 #define BUZZER_PIN 1

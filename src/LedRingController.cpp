@@ -37,6 +37,10 @@ void LedRingController::update(SystemState state, long int encoder, long int tim
     case STATE_TIMER_PAUSED:
       LedRingCountdownPaused(timer, initialTimer, encoder);
       break;
+    case STATE_STOPWATCH_RUN:
+      LedRingStopwatchRun(timer);
+      break;
+
     case STATE_MODE_SELECT:
       LedRingModeSelect(abs(encoder));
       break;
@@ -63,13 +67,13 @@ void LedRingController::startAnimation(ledRingAnimation anim, long int timer, lo
   switch (anim)
   {
   case LEDRING_PAUSE_TIMER:
-    totalFrames = 100;
+    totalFrames = 20;
     // assign single color ring in counting state to endState
     singleColorRingCounting(timer, initialTimer, encoder < 0, CRGB::Yellow, endState);
     break;
 
   case LEDRING_START_TIMER:
-    totalFrames = 100;
+    totalFrames = 20;
     // assign single color ring in counting state to endState
     singleColorRingCounting(timer, initialTimer, encoder < 0, CRGB::Red, endState);
     break;
@@ -109,7 +113,7 @@ void LedRingController::updateAnimation(){
   // Serial.println(currentFrame);
 
   if (millis() - lastFrameTime < frameDelay){
-    Serial.println("Frame delay not reached");
+    // Serial.println("Frame delay not reached");
     return;
   }
   lastFrameTime = millis();
@@ -165,6 +169,16 @@ void LedRingController::LedRingTimeCountdown(long int timer, long int initialTim
     FastLED.show();
 }
 
+void LedRingController::LedRingStopwatchRun(long int timer){
+    FastLED.clear();
+    singleColorRingCounting(timer%1000, 1000, false, CRGB::Red, newLeds);
+    
+    for (int i = 0; i < numLeds; i++)
+      leds[i] = newLeds[i];
+
+    FastLED.show();
+}
+
 void LedRingController::LedRingCountdownPaused(long int timer, long int initialTimer, long int encoder){
     
     FastLED.clear();
@@ -212,6 +226,16 @@ void LedRingController::LedRingModeSelect(long int encoder){
   FastLED.show();
 }
 
+/**
+ * @brief Calculates a time scale factor based on the encoder value.
+ *
+ * This function determines the smallest power-of-two scale factor such that
+ * the encoder value is less than 16 times the scale factor. It starts with
+ * a scale factor of 1 and doubles it until the condition is met.
+ *
+ * @param encoder The input value from the encoder.
+ * @return The calculated time scale factor.
+ */
 int LedRingController::timeScale(long int encoder){
   int testExp = 1;
   while (true){
@@ -222,11 +246,34 @@ int LedRingController::timeScale(long int encoder){
   }    
 }
 
+/**
+ * @brief Inverts the order of LEDs in a ring.
+ *
+ * Copies the contents of the input LED array (`ring`) into the output array (`output`)
+ * in reverse order. The size of the arrays is specified by `arraySize`.
+ *
+ * @param ring Pointer to the input array of CRGB objects representing the LED ring.
+ * @param output Pointer to the output array where the inverted LED order will be stored.
+ * @param arraySize Number of elements in the ring and output arrays.
+ */
 void LedRingController::invertRing(const CRGB* ring, CRGB* output, int arraySize) {
   for (int i = 0; i < arraySize; i++)
       output[i] = ring[arraySize - i - 1];
 }
 
+/**
+ * @brief Sets the LED ring to display a single color selection effect based on a timer value.
+ *
+ * This function fills the output LED array with a color up to a position determined by the timer.
+ * The next LED is blended between black and the selected color to create a smooth transition.
+ * If reversed is true, the LED ring order is inverted.
+ *
+ * @param timer      The current timer value used to determine the selection position.
+ * @param reversed   If true, the LED ring order is inverted.
+ * @param color      The CRGB color to display on the selected LEDs.
+ * @param output     Pointer to the output array of CRGB LEDs to be updated.
+ * @param arraySize  The number of LEDs in the output array.
+ */
 void LedRingController::singleColorRingSelecting(long int timer, bool reversed, CRGB color, CRGB* output, int arraySize) {
   for (int i = 0; i < arraySize; i++)
     output[i] = CRGB::Black;
@@ -248,6 +295,20 @@ void LedRingController::singleColorRingSelecting(long int timer, bool reversed, 
     }
 }
 
+/**
+ * @brief Updates an LED ring to display a single color progress indicator.
+ *
+ * This function fills an output array representing an LED ring with a color pattern
+ * based on the elapsed timer value. The LEDs are colored to indicate progress,
+ * with a smooth transition on the current progress LED. Optionally, the ring can be reversed.
+ *
+ * @param timer         The current timer value indicating elapsed time.
+ * @param initialTimer  The initial timer value representing the total duration.
+ * @param reversed      If true, the LED ring pattern is inverted.
+ * @param color         The CRGB color to use for the progress indication.
+ * @param output        Pointer to the output array of CRGB LEDs to be updated.
+ * @param arraySize     The number of LEDs in the output array.
+ */
 void LedRingController::singleColorRingCounting(long int timer, long int initialTimer, bool reversed, CRGB color, CRGB* output, int arraySize) {
   for (int i = 0; i < arraySize; i++)
     output[i] = CRGB::Black;
@@ -270,6 +331,16 @@ void LedRingController::singleColorRingCounting(long int timer, long int initial
   }
 }
 
+/**
+ * @brief Sets all LEDs in the ring to a single color.
+ *
+ * This function fills the provided output array with the specified color,
+ * effectively setting all LEDs in the ring to the same color.
+ *
+ * @param color The color to set for each LED (of type CRGB).
+ * @param output Pointer to the array of CRGB objects representing the LED ring.
+ * @param arraySize The number of LEDs in the ring (size of the output array).
+ */
 void LedRingController::singleColorRing(CRGB color, CRGB* output, int arraySize){
   for (int i = 0; i < arraySize; i++)
     output[i] = color;

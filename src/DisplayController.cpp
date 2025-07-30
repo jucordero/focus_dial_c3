@@ -51,6 +51,10 @@ void DisplayController::update(SystemState state, long int timer) {
             drawTimeScreen(timer);
             break;
 
+        case STATE_TIMER_PAUSED:
+            drawTimeScreen(timer);
+            break;
+
         case STATE_PULSE_SELECT:
             drawTimeScreen(timer);
             break;
@@ -58,8 +62,16 @@ void DisplayController::update(SystemState state, long int timer) {
         case STATE_PULSE_RUN:
             drawTimeScreen(timer);
             break;
-        
-        case STATE_TIMER_PAUSED:
+            
+        case STATE_STOPWATCH_START:
+            drawTimeScreen(timer);
+            break;
+
+        case STATE_STOPWATCH_RUN:
+            drawTimeScreen(timer);
+            break;
+
+        case STATE_STOPWATCH_PAUSED:
             drawTimeScreen(timer);
             break;
 
