@@ -1,20 +1,22 @@
 #include "LedRingController.h"
-#include "FastLED.h"
+#include <Adafruit_NeoPixel.h>
 #include "config.h"
+#include "EEPROM.h"
 
-LedRingController::LedRingController(int numLeds, int ledPin, int brightness)
+LedRingController::LedRingController(int numLeds, int ledPin)
   : numLeds(numLeds),
     ledPin(ledPin),
-    brightness(brightness)
+    strip(numLeds, ledPin, NEO_GRB + NEO_KHZ800)
 {
-    leds = new CRGB[numLeds];
+    // No need to manually allocate CRGB array anymore
 }
 
-void LedRingController::begin() {
-    FastLED.setBrightness(brightness);
-    FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, numLeds);
-    FastLED.clear();
-    FastLED.show();
+void LedRingController::begin(int brightness) {
+    strip.begin();
+    this->brightness = brightness;
+    strip.setBrightness(brightness);
+    strip.clear();
+    strip.show();
 }
 
 void LedRingController::update(SystemState state, long int encoder, long int timer, long int initialTimer){
@@ -40,9 +42,14 @@ void LedRingController::update(SystemState state, long int encoder, long int tim
     case STATE_STOPWATCH_RUN:
       LedRingStopwatchRun(timer);
       break;
-
     case STATE_MODE_SELECT:
       LedRingModeSelect(abs(encoder));
+      break;
+    case STATE_SETTINGS_LEDRING:
+      LedringSingleColor(strip.Color(255, 255, 255));
+      break;
+    case STATE_SETTINGS:
+      LedringSingleColor(strip.Color(0, 0, 0));
       break;
 
     default:
@@ -52,7 +59,6 @@ void LedRingController::update(SystemState state, long int encoder, long int tim
 }
 
 void LedRingController::startAnimation(ledRingAnimation anim, long int timer, long int initialTimer, long int encoder){
-  Serial.println("Starting LED animation");
   animationRunning = true;
   animation = anim;
   currentFrame = 0;
@@ -60,8 +66,8 @@ void LedRingController::startAnimation(ledRingAnimation anim, long int timer, lo
 
   // Populate initialState with the current LED state
   for (int i = 0; i < numLeds; i++) {
-    initialState[i] = leds[i];
-    endState[i] = CRGB::Black; // Default endState is off (black)
+    initialState[i] = strip.getPixelColor(i);
+    endState[i] = strip.Color(0,0,0); // Default endState is off (black)
   }
 
   switch (anim)
@@ -69,37 +75,37 @@ void LedRingController::startAnimation(ledRingAnimation anim, long int timer, lo
   case LEDRING_PAUSE_TIMER:
     totalFrames = 20;
     // assign single color ring in counting state to endState
-    singleColorRingCounting(timer, initialTimer, encoder < 0, CRGB::Yellow, endState);
+    singleColorRingCounting(timer, initialTimer, encoder < 0, strip.Color(255, 255, 0), endState);
     break;
 
   case LEDRING_START_TIMER:
     totalFrames = 20;
     // assign single color ring in counting state to endState
-    singleColorRingCounting(timer, initialTimer, encoder < 0, CRGB::Red, endState);
+    singleColorRingCounting(timer, initialTimer, encoder < 0, strip.Color(255, 0, 0), endState);
     break;
 
   case LEDRING_FINISHED_TIMER:
     // assign single color ring initialState and endState
-    singleColorRing(CRGB::Black, initialState);
-    singleColorRing(CRGB::White, endState);
+    singleColorRing(strip.Color(0, 0, 0), initialState);
+    singleColorRing(strip.Color(255, 255, 255), endState);
     break;
 
   case LEDRING_RETURN_MAIN_MENU:
     totalFrames = 10;  
     for (int i = abs(encoder)%8*2; i < abs(encoder)%8*2+2; i++){
-      endState[i] = CRGB::Aqua;
+      endState[i] = strip.Color(0, 255, 255);
     }
     break;
 
   case LEDRING_PREPARE_SLEEP:
     totalFrames = 20;
     // assign single color ring in counting state to endState
-    singleColorRing(CRGB::Black, endState);
+    singleColorRing(strip.Color(0, 0, 0), endState);
     break;
 
   case LEDRING_MODE_SELECT:
     totalFrames = 10;
-    singleColorRing(CRGB::Black, endState);
+    singleColorRing(strip.Color(0, 0, 0), endState);
     break;
 
 
@@ -109,11 +115,8 @@ void LedRingController::startAnimation(ledRingAnimation anim, long int timer, lo
 }
 
 void LedRingController::updateAnimation(){
-  // Serial.print("Current frame: ");
-  // Serial.println(currentFrame);
 
   if (millis() - lastFrameTime < frameDelay){
-    // Serial.println("Frame delay not reached");
     return;
   }
   lastFrameTime = millis();
@@ -150,87 +153,88 @@ void LedRingController::updateAnimation(){
 
 void LedRingController::LedRingTimeScreen(long int timer, long int encoder){
 
-    FastLED.clear();
+    int DELTA_T_CCW = EEPROM.readInt(EEPROM_DELTAT_CCW_ADDR);
+    int DELTA_T_CW = EEPROM.readInt(EEPROM_DELTAT_CW_ADDR);
+
+    strip.clear();
     if (encoder < 0)
-      singleColorRingSelecting(timer/DELTA_T_CCW, true, CRGB::Blue, newLeds);
+      singleColorRingSelecting(timer/DELTA_T_CCW, true, strip.Color(0, 0, 255), newLeds);
     if (encoder >= 0)
-      singleColorRingSelecting(timer/DELTA_T_CW, false, CRGB::Green, newLeds);
+      singleColorRingSelecting(timer/DELTA_T_CW, false, strip.Color(0, 255, 0), newLeds);
     for (int i = 0; i < numLeds; i++)
-      leds[i] = newLeds[i];
-    FastLED.show();
+      strip.setPixelColor(i, newLeds[i]);
+    strip.show();
 }
 
 void LedRingController::LedRingTimeCountdown(long int timer, long int initialTimer, long int encoder){
     
-    FastLED.clear();
-    singleColorRingCounting(timer, initialTimer, encoder<0,  CRGB::Red, newLeds);
+    strip.clear();
+    singleColorRingCounting(timer, initialTimer, encoder<0,  strip.Color(255, 0, 0), newLeds);
     for (int i = 0; i < numLeds; i++)
-      leds[i] = newLeds[i];
-    FastLED.show();
+      strip.setPixelColor(i, newLeds[i]);
+    strip.show();
 }
 
 void LedRingController::LedRingStopwatchRun(long int timer){
-    FastLED.clear();
-    singleColorRingCounting(timer%1000, 1000, false, CRGB::Red, newLeds);
+    strip.clear();
+    singleColorRingCounting(timer%1000, 1000, false, strip.Color(255, 0, 0), newLeds);
     
     for (int i = 0; i < numLeds; i++)
-      leds[i] = newLeds[i];
+      strip.setPixelColor(i, newLeds[i]);
 
-    FastLED.show();
+    strip.show();
 }
 
 void LedRingController::LedRingCountdownPaused(long int timer, long int initialTimer, long int encoder){
     
-    FastLED.clear();
-    singleColorRingCounting(timer, initialTimer, encoder<0, CRGB::Yellow, newLeds);
+    strip.clear();
+    singleColorRingCounting(timer, initialTimer, encoder<0, strip.Color(255, 255, 0), newLeds);
     for (int i = 0; i < numLeds; i++)
-      leds[i] = newLeds[i];
-    FastLED.show();
+      strip.setPixelColor(i, newLeds[i]);
+    strip.show();
 }
 
 void LedRingController::LedRingSleep(){
-    FastLED.clear();
-    FastLED.show();
+    strip.clear();
+    strip.show();
 }
 
 
-void LedRingController::fadeBetweenStates(CRGB* initialState, CRGB* endState){
-  Serial.print("Fading between states, current frame: ");
-  Serial.println(currentFrame);
-  FastLED.clear();
+void LedRingController::fadeBetweenStates(uint32_t* initialState, uint32_t* endState){
+  strip.clear();
 
   float t = (float) currentFrame / totalFrames;
   for (int i = 0; i < numLeds; i++)
-    leds[i] = blend(initialState[i], endState[i], t*255);
+    strip.setPixelColor(i, blendColor(initialState[i], endState[i], t*255));
   currentFrame++;
   if (currentFrame > totalFrames)
     animationRunning = false;
-  FastLED.show();
+  strip.show();
 }
 
-void LedRingController::pulseBetweenStates(CRGB* initialState, CRGB* endState){
-  FastLED.clear();
+void LedRingController::pulseBetweenStates(uint32_t* initialState, uint32_t* endState){
+  strip.clear();
   for (int i = 0; i < numLeds; i++)
-    leds[i] = blend(initialState[i], endState[i], beatsin8(20, 0, 255));
+    strip.setPixelColor(i, blendColor(initialState[i], endState[i], beatsin8(20, 0, 255)));
 
-  FastLED.show();
+  strip.show();
 }
 
 void LedRingController::LedRingModeSelect(long int encoder){
-  FastLED.clear();
-  unsigned int initPos = abs(encoder)%8*2;
+  strip.clear();
+  unsigned int initPos = abs(encoder)%6*4;
   
-  for (int i = initPos; i < initPos+2; i++){
-    leds[i] = CRGB::Aqua;
+  for (int i = initPos; i < initPos+4; i++){
+    strip.setPixelColor(i, 0, 255, 255);
   }
-  FastLED.show();
+  strip.show();
 }
 
 /**
  * @brief Calculates a time scale factor based on the encoder value.
  *
  * This function determines the smallest power-of-two scale factor such that
- * the encoder value is less than 16 times the scale factor. It starts with
+ * the encoder value is less than NUM_LEDS times the scale factor. It starts with
  * a scale factor of 1 and doubles it until the condition is met.
  *
  * @param encoder The input value from the encoder.
@@ -239,7 +243,7 @@ void LedRingController::LedRingModeSelect(long int encoder){
 int LedRingController::timeScale(long int encoder){
   int testExp = 1;
   while (true){
-    if (encoder < 16*testExp)
+    if (encoder < NUM_LEDS*testExp)
       return testExp;
     else
       testExp *= 2;
@@ -256,7 +260,7 @@ int LedRingController::timeScale(long int encoder){
  * @param output Pointer to the output array where the inverted LED order will be stored.
  * @param arraySize Number of elements in the ring and output arrays.
  */
-void LedRingController::invertRing(const CRGB* ring, CRGB* output, int arraySize) {
+void LedRingController::invertRing(const uint32_t* ring, uint32_t* output, int arraySize) {
   for (int i = 0; i < arraySize; i++)
       output[i] = ring[arraySize - i - 1];
 }
@@ -274,9 +278,9 @@ void LedRingController::invertRing(const CRGB* ring, CRGB* output, int arraySize
  * @param output     Pointer to the output array of CRGB LEDs to be updated.
  * @param arraySize  The number of LEDs in the output array.
  */
-void LedRingController::singleColorRingSelecting(long int timer, bool reversed, CRGB color, CRGB* output, int arraySize) {
+void LedRingController::singleColorRingSelecting(long int timer, bool reversed, uint32_t color, uint32_t* output, int arraySize) {
   for (int i = 0; i < arraySize; i++)
-    output[i] = CRGB::Black;
+    output[i] = strip.Color(0, 0, 0);
 
   int d = timeScale(timer);
   int posLeds = timer / d;
@@ -285,10 +289,10 @@ void LedRingController::singleColorRingSelecting(long int timer, bool reversed, 
   for (int i = 0; i < posLeds; i++)
     output[i] = color;
 
-  output[posLeds] = blend(CRGB::Black, color, remLeds * 255 / d);
+  output[posLeds] = blendColor(strip.Color(0, 0, 0), color, remLeds * 255 / d);
 
   if (reversed) {
-      CRGB temp[arraySize];
+      uint32_t temp[arraySize];
       invertRing(output, temp, arraySize);
       for (int i = 0; i < arraySize; i++)
           output[i] = temp[i];
@@ -309,22 +313,30 @@ void LedRingController::singleColorRingSelecting(long int timer, bool reversed, 
  * @param output        Pointer to the output array of CRGB LEDs to be updated.
  * @param arraySize     The number of LEDs in the output array.
  */
-void LedRingController::singleColorRingCounting(long int timer, long int initialTimer, bool reversed, CRGB color, CRGB* output, int arraySize) {
+void LedRingController::singleColorRingCounting(
+  long int timer,
+  long int initialTimer,
+  bool reversed,
+  uint32_t color,
+  uint32_t* output,
+  int arraySize
+) {
+  int brightnessStep = 10;
   for (int i = 0; i < arraySize; i++)
-    output[i] = CRGB::Black;
+    output[i] = strip.Color(0, 0, 0);
 
-  long int elapsed = (timer * 160) / initialTimer;
+  long int elapsed = (timer * NUM_LEDS * brightnessStep) / initialTimer;
 
-  int posLeds = elapsed / 10;
-  int remLeds = elapsed % 10;
+  int posLeds = elapsed / brightnessStep;
+  int remLeds = elapsed % brightnessStep;
 
   for(int i = 0; i < posLeds; i++)
     output[i] = color;
 
-  output[posLeds] = blend(CRGB::Black, color, remLeds * 255 / 10);
+  output[posLeds] = blendColor(strip.Color(0, 0, 0), color, remLeds * 255 / brightnessStep);
 
   if (reversed) {
-    CRGB temp[arraySize];
+    uint32_t temp[arraySize];
     invertRing(output, temp, arraySize);
     for (int i = 0; i < arraySize; i++)
         output[i] = temp[i];
@@ -341,8 +353,31 @@ void LedRingController::singleColorRingCounting(long int timer, long int initial
  * @param output Pointer to the array of CRGB objects representing the LED ring.
  * @param arraySize The number of LEDs in the ring (size of the output array).
  */
-void LedRingController::singleColorRing(CRGB color, CRGB* output, int arraySize){
+void LedRingController::singleColorRing(uint32_t color, uint32_t* output, int arraySize){
   for (int i = 0; i < arraySize; i++)
     output[i] = color;
 }
 
+uint32_t LedRingController::blendColor(uint32_t c1, uint32_t c2, uint8_t t) {
+    // Extract RGB components
+    uint8_t r1 = (c1 >> 16) & 0xFF;
+    uint8_t g1 = (c1 >> 8) & 0xFF;
+    uint8_t b1 = c1 & 0xFF;
+
+    uint8_t r2 = (c2 >> 16) & 0xFF;
+    uint8_t g2 = (c2 >> 8) & 0xFF;
+    uint8_t b2 = c2 & 0xFF;
+
+    // Linear interpolation
+    uint8_t r = r1 + ((r2 - r1) * t) / 255;
+    uint8_t g = g1 + ((g2 - g1) * t) / 255;
+    uint8_t b = b1 + ((b2 - b1) * t) / 255;
+
+    return strip.Color(r, g, b);
+}
+
+uint8_t LedRingController::beatsin8(float bpm, uint8_t low, uint8_t high) {
+    float beat = millis() / (60000.0 / bpm); // Convert BPM to period in ms
+    float wave = (sin(beat * TWO_PI) + 1.0) / 2.0; // Normalize 0–1
+    return low + (high - low) * wave;
+}

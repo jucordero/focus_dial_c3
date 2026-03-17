@@ -1,6 +1,7 @@
 #include "DisplayController.h"
 #include "bitmaps.h"
 #include <EEPROM.h>
+#include "config.h"
 
 #ifdef U8X8_HAVE_HW_SPI
 #include <SPI.h>
@@ -23,9 +24,10 @@ DisplayController::DisplayController(int pinSDA, int pinSCL)
       animation(&u8g2)
       {}
 
-void DisplayController::begin(){
+void DisplayController::begin(int){
     Wire.begin(pinSDA, pinSCL);
     u8g2.begin();
+    u8g2.setContrast(brightness);
 }
 
 /**
@@ -36,11 +38,17 @@ void DisplayController::begin(){
  * @param state The current system state.
  * @param encoder The current value of the encoder, representing the time in seconds.
  */
-void DisplayController::update(SystemState state, long int timer) {
-    if (animation.isRunning())
-        animation.update();
+void DisplayController::update(
+    SystemState state,
+    long int timer,
+    long int position) {
 
+    if (animation.isRunning())
+    animation.update();
+    
     else { //If animation has finished, resume normal operation.
+        u8g2.clearBuffer();
+
         switch (state)
         {
         case STATE_TIMER_SELECT:
@@ -75,16 +83,40 @@ void DisplayController::update(SystemState state, long int timer) {
             drawTimeScreen(timer);
             break;
 
-        case STATE_MODE_SELECT:
-            drawModeSelect(timer);
-            break;
+        // case STATE_MODE_SELECT:
+        //     drawModeSelect(timer);
+        //     break;
 
         case STATE_WIFI_SELECT:
             drawWifiSelect(timer);
             break;
 
         case STATE_SETTINGS:
-            drawSettings(timer);
+            drawSettings(position);
+            break;
+
+        case STATE_SETTINGS_AUDIO:
+            drawAudioSettings(position);
+            break;
+
+        case STATE_SETTINGS_DISPLAY:
+            drawDisplaySettings(position);
+            break;
+
+        case STATE_SETTINGS_LEDRING:
+            drawLedringSettings(position);
+            break;
+
+        case STATE_SETTINGS_TIMER:
+            drawTimerSettings(position);
+            break;
+
+        case STATE_SETTINGS_TIMER_CW:
+            drawTimerSettingsCW(position);
+            break;
+
+        case STATE_SETTINGS_TIMER_CCW:
+            drawTimerSettingsCCW(position);
             break;
 
         case STATE_INFO:
@@ -94,7 +126,22 @@ void DisplayController::update(SystemState state, long int timer) {
         default:
             break;
         }
+        drawBatteryLevel();
+
+        if (EEPROM.readBool(EEPROM_PIEZO_MUTE_ADDR))
+            u8g2.drawXBM(115, 2, 12, 12, sound_off_icon);
+        else
+            u8g2.drawXBM(115, 2, 12, 12, sound_on_icon);
+
+        if (digitalRead(SWITCH_PIN)==LOW){
+            u8g2.setDrawColor(2);
+            u8g2.drawBox(0,0,128,32);
+            u8g2.setDrawColor(1);
+        }
+        
+        u8g2.sendBuffer();
     }
+
 }
 
 /**
@@ -104,7 +151,6 @@ void DisplayController::update(SystemState state, long int timer) {
  * @param encoder The current value of the encoder, representing the time in seconds.
  */
 void DisplayController::drawTimeScreen(long int timer) {
-    u8g2.clearBuffer();
     u8g2.setFontMode(1);
     u8g2.setBitmapMode(1);
 
@@ -114,45 +160,27 @@ void DisplayController::drawTimeScreen(long int timer) {
     long int ss = toSeconds % 60;
 
     char timeStr[6];
-    u8g2.setFont(u8g2_font_logisoso38_tn);
+    u8g2.setFont(u8g2_font_logisoso32_tn);
     sprintf(timeStr, "%02ld:%02ld", mm, ss);
-    u8g2.drawStr(1, 51, timeStr);
+    u8g2.drawStr(0, 32, timeStr);
 
     char tensOfSecondsStr[2];
     sprintf(tensOfSecondsStr, "%1ld", (timer % 1000) / 100);
-    u8g2.setFont(u8g2_font_logisoso18_tn);
-    u8g2.drawStr(112, 51, tensOfSecondsStr);
+    u8g2.setFont(u8g2_font_logisoso16_tn);
+    u8g2.drawStr(91, 32, tensOfSecondsStr);
 
-    u8g2.drawXBMP(113, 14, 15, 16, image_download_bits);
+    // u8g2.drawXBMP(113, 14, 15, 16, image_download_bits);
 
-    drawBatteryLevel();
-    u8g2.sendBuffer();
 }
 
-void DisplayController::drawModeSelect(long int timer) {
-    u8g2.clearBuffer();
-    u8g2.setFontMode(1);
-    u8g2.setBitmapMode(1);
-
-    int position = timer % 4;
-
-    char posStr[2];
-    u8g2.setFont(u8g2_font_logisoso38_tn);
-    sprintf(posStr, "%d", position);
-    u8g2.drawStr(1, 51, posStr);
-
-    u8g2.sendBuffer();
-}
-
-void DisplayController::drawWifiSelect(long int position) {
-    u8g2.clearBuffer();
+void DisplayController::drawWifiSelect(long int timer) {
     u8g2.setFontMode(1);
     u8g2.setBitmapMode(1);
 
     u8g2.setFont(u8g2_font_logisoso18_tr);
     u8g2.setCursor(0, 20);
 
-    switch (position){
+    switch (timer){
         case 0:
             u8g2.print(".. Back");
             break;
@@ -170,31 +198,140 @@ void DisplayController::drawWifiSelect(long int position) {
             break;
         }
 
-        u8g2.sendBuffer();
 }
 
-void DisplayController::drawSettings(long int position) {
-    u8g2.clearBuffer();
+void DisplayController::drawAudioSettings(long int position)
+{
     u8g2.setFontMode(1);
     u8g2.setBitmapMode(1);
 
+    u8g2.setFont(u8g2_font_profont12_tf);
+    u8g2.setCursor(0, 12);
+    u8g2.print("Sound");
+    
     u8g2.setFont(u8g2_font_logisoso18_tr);
-    u8g2.setCursor(0, 20);
+    u8g2.setCursor(0, 32);
+    if (position % 2 == 0)
+        u8g2.print("muted");
+    else
+        u8g2.print("not muted");
+}
+
+void DisplayController::drawDisplaySettings(long int position)
+{
+    u8g2.setFontMode(1);
+    u8g2.setBitmapMode(1);
+
+    u8g2.setFont(u8g2_font_profont12_tf);
+    u8g2.setCursor(0, 12);
+    u8g2.print("Display brightness");
+    
+    u8g2.setFont(u8g2_font_logisoso18_tr);
+    u8g2.setCursor(0, 32);
+        u8g2.print(position*10);
+        u8g2.print("%");
+}
+
+void DisplayController::drawLedringSettings(long int position)
+{
+    u8g2.setFontMode(1);
+    u8g2.setBitmapMode(1);
+
+    u8g2.setFont(u8g2_font_profont12_tf);
+    u8g2.setCursor(0, 12);
+    u8g2.print("Ring brightness");
+    
+    u8g2.setFont(u8g2_font_logisoso18_tr);
+    u8g2.setCursor(0, 32);
+        u8g2.print(position*10);
+        u8g2.print("%");
+}
+
+void DisplayController::drawTimerSettings(long int position)
+{
+    u8g2.setFontMode(1);
+    u8g2.setBitmapMode(1);
+
+    u8g2.setFont(u8g2_font_profont12_tf);
+    u8g2.setCursor(0, 12);
+    u8g2.print("Timer settings");
+
+    u8g2.setFont(u8g2_font_logisoso18_tr);
+    u8g2.setCursor(0, 32);
+
+    if (position%2 == 0)
+        u8g2.print("CCW step");
+    else
+        u8g2.print("CW step");
+    
+}
+
+void DisplayController::drawTimerSettingsCW(long int position)
+{
+    u8g2.setFontMode(1);
+    u8g2.setBitmapMode(1);
+
+    u8g2.setFont(u8g2_font_profont12_tf);
+    u8g2.setCursor(0, 12);
+    u8g2.print("CW step");
+
+    u8g2.setFont(u8g2_font_logisoso18_tr);
+    u8g2.setCursor(0, 32);
+
+    u8g2.print(position*1000);
+    u8g2.print("ms");
+
+}
+
+void DisplayController::drawTimerSettingsCCW(long int position)
+{
+    u8g2.setFontMode(1);
+    u8g2.setBitmapMode(1);
+
+    u8g2.setFont(u8g2_font_profont12_tf);
+    u8g2.setCursor(0, 12);
+    u8g2.print("CCW step");
+
+    u8g2.setFont(u8g2_font_logisoso18_tr);
+    u8g2.setCursor(0, 32);
+
+    u8g2.print(position*1000);
+    u8g2.print("ms");
+}
+
+void DisplayController::drawSettings(long int position)
+{
+    u8g2.setFontMode(1);
+    u8g2.setBitmapMode(1);
+
+    u8g2.setFont(u8g2_font_profont12_tf);
+    u8g2.setCursor(0, 12);
     u8g2.print("Settings");
 
-    if (position % 2 == 0) {
-        u8g2.setCursor(0, 40);
-        u8g2.print("muted");
-    } else {
-        u8g2.setCursor(0, 40);
-        u8g2.print("not muted");
-    }    
+    u8g2.setFont(u8g2_font_logisoso18_tr);
+    u8g2.setCursor(0, 32);
 
-    u8g2.sendBuffer();
+    switch (position)
+    {
+    case 0:
+        u8g2.print("Sound");
+        break;
+    case 1:
+        u8g2.print("Display");
+        break;
+    case 2:
+        u8g2.print("Ledring");
+        break;
+    case 3:
+        u8g2.print("Timer");
+        break;
+    
+    default:
+        break;
+    }
 }
 
 void DisplayController::drawInfo() {
-    u8g2.clearBuffer();
     u8g2.setFontMode(1);
     u8g2.setBitmapMode(1);
 
@@ -207,7 +344,6 @@ void DisplayController::drawInfo() {
     u8g2.setCursor(0, 40);
     u8g2.print(ssid);
 
-    u8g2.sendBuffer();
     }
 
 /**
@@ -223,18 +359,21 @@ void DisplayController::sleepScreen(){
 
 void DisplayController::drawBatteryLevel() {
 
-    int level = analogRead(A0);
-    u8g2.setFont(u8g2_font_blipfest_07_tn);
-    char levelStr[6];
-    snprintf(levelStr, sizeof(levelStr), "%d", level);
-    u8g2.drawStr(0, 8, levelStr);    
+    int level = analogRead(BATTERY_PIN);
+    int c_level = constrain(level, BATTERY_LOW_LEVEL, BATTERY_HIGH_LEVEL); 
+    int batPctg = map(c_level, BATTERY_LOW_LEVEL, BATTERY_HIGH_LEVEL, 0, 100);
 
-    // // Draw the battery body
-    // u8g2.drawFrame(1, 1, 15, 10);
-    // u8g2.drawFrame(16, 3, 2, 6);
+    u8g2.setFont(u8g2_font_profont12_tf);
+    char batStr[5];
+    snprintf(batStr, sizeof(batStr), "%d%%", batPctg);
+    u8g2.drawStr(110, 32, batStr);
 
-    // // Draw the battery level based on the level parameter
-    // for (int i = 0; i < level; i++)
-    //     u8g2.drawFrame(3 + (i * 3), 3, 2, 6); // Draw empty rectangle for remaining capacity
+    // u8g2.setFont(u8g2_font_blipfest_07_tn);
+    // char levelStr[6];
+    // snprintf(levelStr, sizeof(levelStr), "%d", level);
+    // u8g2.drawStr(110, 32, levelStr);
+
+    // u8g2.drawXBM(115, 16, 12, 15, battery_base);
+    // Serial.println(analogRead(BATTERY_PIN));
 
 }

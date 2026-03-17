@@ -12,7 +12,7 @@
 SystemState currentState = STATE_TIMER_SELECT;
 DisplayController displayController(SDA_PIN, SCL_PIN);
 StateController stateController;
-LedRingController ledRingController(NUM_LEDS, LED_PIN, LED_BRIGHT);
+LedRingController ledRingController(NUM_LEDS, LED_PIN);
 PiezoController piezoController(BUZZER_PIN);
 InputController inputController(ENCODER_PIN1, ENCODER_PIN2, SWITCH_PIN);
 
@@ -26,7 +26,7 @@ void setup(void) {
     // Initialize EEPROM
     EEPROM.begin(EEPROM_SIZE);
     // Read muted state from EEPROM
-    bool isMuted = EEPROM.read(EEPROM_PIEZO_MUTE_ADDR);
+    // bool isMuted = true;
 
     Serial.begin(115200);
     if (previousState == STATE_PREPARE_SLEEP) previousState = STATE_MODE_SELECT;
@@ -41,9 +41,29 @@ void setup(void) {
         currentState = STATE_TIMER_SELECT;
     }
 
-  displayController.begin();
-  ledRingController.begin();
-  piezoController.begin(isMuted);
+  if (EEPROM.readInt(EEPROM_LEDRING_BRIGHTNESS_ADDR) > 100) {
+    EEPROM.writeInt(EEPROM_LEDRING_BRIGHTNESS_ADDR, 100);
+    EEPROM.commit();
+  }
+
+  if (EEPROM.readInt(EEPROM_SCREEN_BRIGHTNESS_ADDR) > 100) {
+    EEPROM.writeInt(EEPROM_SCREEN_BRIGHTNESS_ADDR, 100);
+    EEPROM.commit();
+  }
+
+  if (EEPROM.readInt(EEPROM_DELTAT_CCW_ADDR) > 60000) {
+    EEPROM.writeInt(EEPROM_DELTAT_CCW_ADDR, 60000);
+    EEPROM.commit();
+  }
+
+  if (EEPROM.readInt(EEPROM_DELTAT_CW_ADDR) > 10000) {
+    EEPROM.writeInt(EEPROM_DELTAT_CW_ADDR, 10000);
+    EEPROM.commit();
+  }
+
+  displayController.begin(EEPROM.readInt(EEPROM_SCREEN_BRIGHTNESS_ADDR));
+  ledRingController.begin(EEPROM.readInt(EEPROM_LEDRING_BRIGHTNESS_ADDR));
+  piezoController.begin(EEPROM.readBool(EEPROM_PIEZO_MUTE_ADDR));
   inputController.begin();
 
 }
@@ -68,7 +88,8 @@ void loop(void) {
   
   displayController.update(
     currentState = stateController.getState(),
-    stateController.getTimer()
+    stateController.getTimer(),
+    stateController.getPosition()
     );
 
   piezoController.update(stateController.getState());
