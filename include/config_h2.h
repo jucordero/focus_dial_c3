@@ -12,7 +12,9 @@ using DisplayType = U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C;
 
 namespace Fonts {
 static constexpr const uint8_t* LargeNumber = u8g2_font_logisoso32_tn;
-static constexpr const uint8_t* MediumNumber = u8g2_font_logisoso16_tn;
+static constexpr const uint8_t* MediumText = u8g2_font_logisoso18_tr;
+static constexpr const uint8_t* SmallText = u8g2_font_profont12_tf;
+static constexpr const uint8_t* Symbols = u8g2_font_streamline_all_t;
 }
 
 // LED strip
