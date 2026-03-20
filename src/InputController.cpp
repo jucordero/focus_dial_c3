@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include "InputController.h"
-#include "config.h"
+#include HW_CONFIG
 
 InputController::InputController(int pinEncoder1, int pinEncoder2, int pinButton)
     : pinEncoder1(pinEncoder1),
@@ -48,17 +48,8 @@ void InputController::update() {
         lastAction = BUTTON_SHORT_PRESS;
     }
 
-    // Update the rotary encoder state
+    // Check for rotary encoder movement
     long int newPosition = encoder.getEncoderValue();
-
-    if (newPosition != currentPosition) {
-        currentPosition = newPosition;
-        if (newPosition > previousPosition) { // ojo aca
-            lastAction = ROTARY_CW_TICK;
-        } else {
-            lastAction = ROTARY_CCW_TICK;
-        }
-    }
 }
 
 long int InputController::getPosition() {

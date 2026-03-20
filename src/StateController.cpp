@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include "StateController.h"
-#include "config.h"
+#include HW_CONFIG
 #include <esp_sleep.h>
 #include "Animation.h"
 #include "bitmaps.h"
@@ -99,7 +99,7 @@ void StateController::update(DisplayController& display,
       buttonFeedback(piezo);
       display.animation.stop();
       
-      ledRing.startAnimation(newAnimation[currentPosition], currentPosition, initialTimer, currentPosition);
+      ledRing.startAnimation(newAnimation[currentPosition], currentPosition, initialTimer, currentPosition, 20);
       currentState = newCurrentState[currentPosition];
       Serial.print("Entering new menu: ");
       Serial.println(newCurrentStateString[currentPosition]);
@@ -123,7 +123,7 @@ void StateController::update(DisplayController& display,
       buttonFeedback(piezo);
       if (currentPosition==0){
         Serial.println("Returning to main menu");
-        ledRing.startAnimation(LEDRING_RETURN_MAIN_MENU, currentTimer, initialTimer, currentPosition);
+        // ledRing.startAnimation(LEDRING_RETURN_MAIN_MENU, currentTimer, initialTimer, currentPosition);
         currentState = STATE_MODE_SELECT;
         input.setPosition(0);
         display.animation.start(hourglass, 27, true);
@@ -134,7 +134,7 @@ void StateController::update(DisplayController& display,
         currentState = STATE_TIMER_RUN;
         display.animation.start(play_pause, 19); // Set the countdown animation to start
         initialTimer = currentTimer;
-        ledRing.startAnimation(LEDRING_START_TIMER, currentTimer, initialTimer, currentPosition);
+        ledRing.startAnimation(LEDRING_START_TIMER, currentTimer, initialTimer, currentPosition, 20);
         countdownTimer = millis();
         Serial.print("Timer started with: ");
         Serial.print(currentTimer);
@@ -148,7 +148,7 @@ void StateController::update(DisplayController& display,
 
       if (currentPosition==0){
         Serial.println("Returning to main menu");
-        ledRing.startAnimation(LEDRING_RETURN_MAIN_MENU, currentTimer, initialTimer, currentPosition);
+        // ledRing.startAnimation(LEDRING_RETURN_MAIN_MENU, currentTimer, initialTimer, currentPosition, 20);
         currentState = STATE_MODE_SELECT;
         input.setPosition(0);
         display.animation.start(hourglass, 27, true);
@@ -177,7 +177,7 @@ void StateController::update(DisplayController& display,
 
     if (currentTimer < 0){
       currentState = STATE_TIMER_FINISHED;
-      ledRing.startAnimation(LEDRING_FINISHED_TIMER, currentTimer, initialTimer, currentPosition);
+      ledRing.startAnimation(LEDRING_FINISHED_TIMER, currentTimer, initialTimer, currentPosition, 20);
       display.animation.start(ring_alarm, 27, true); 
       piezo.startMelody(loopBeep);
       lastInteractionTimer = millis();
@@ -187,7 +187,7 @@ void StateController::update(DisplayController& display,
       buttonFeedback(piezo);
       currentState = STATE_TIMER_PAUSED;
       display.animation.start(play_pause, 19, false, true); // Set the countdown animation to start
-      ledRing.startAnimation(LEDRING_PAUSE_TIMER, currentTimer, initialTimer, currentPosition);
+      ledRing.startAnimation(LEDRING_PAUSE_TIMER, currentTimer, initialTimer, currentPosition, 20);
     }
     break;
 
@@ -197,7 +197,7 @@ void StateController::update(DisplayController& display,
       buttonFeedback(piezo);
       currentState = STATE_TIMER_RUN;
       display.animation.start(play_pause, 19);
-      ledRing.startAnimation(LEDRING_START_TIMER, currentTimer, initialTimer, currentPosition);
+      ledRing.startAnimation(LEDRING_START_TIMER, currentTimer, initialTimer, currentPosition, 20);
       countdownTimer = millis();
     }
 
@@ -214,6 +214,7 @@ void StateController::update(DisplayController& display,
 
     if (input.lastAction == BUTTON_SHORT_PRESS || newPosition != currentPosition) {
       buttonFeedback(piezo);
+      piezo.stopMelody();
       currentState = STATE_TIMER_SELECT;
       ledRing.animationRunning = false;
       display.animation.stop();
@@ -238,7 +239,7 @@ void StateController::update(DisplayController& display,
       buttonFeedback(piezo);
     
       if (currentPosition==0){
-        ledRing.startAnimation(LEDRING_RETURN_MAIN_MENU, currentTimer, initialTimer, 4);
+        // ledRing.startAnimation(LEDRING_RETURN_MAIN_MENU, currentTimer, initialTimer, 4);
         currentState = STATE_MODE_SELECT;
         input.setPosition(4);
         currentPosition = input.getPosition();
@@ -249,7 +250,7 @@ void StateController::update(DisplayController& display,
         currentState = STATE_PULSE_RUN;
         display.animation.start(play_pause, 19);
         initialTimer = currentTimer;
-        ledRing.startAnimation(LEDRING_START_TIMER, currentTimer, initialTimer, currentPosition);
+        ledRing.startAnimation(LEDRING_START_TIMER, currentTimer, initialTimer, currentPosition, 20);
         countdownTimer = millis();
         // positionTimer = millis();
       }      
@@ -260,7 +261,7 @@ void StateController::update(DisplayController& display,
 
       if (currentPosition==0){
         Serial.println("Returning to main menu");
-        ledRing.startAnimation(LEDRING_RETURN_MAIN_MENU, currentTimer, initialTimer, currentPosition);
+        // ledRing.startAnimation(LEDRING_RETURN_MAIN_MENU, currentTimer, initialTimer, currentPosition);
         currentState = STATE_MODE_SELECT;
         input.setPosition(4);
         currentPosition = input.getPosition();
@@ -288,6 +289,7 @@ void StateController::update(DisplayController& display,
       Serial.println("Pulse timer finished");
       currentTimer += initialTimer;
       piezo.startMelody(rotaryUpMelody);
+      ledRing.startAnimation(LEDRING_PULSE_FLASH, 5);
     }
 
     if (input.lastAction == BUTTON_SHORT_PRESS) {
@@ -314,7 +316,7 @@ void StateController::update(DisplayController& display,
     if (input.lastAction == BUTTON_SHORT_PRESS) {
       buttonFeedback(piezo);
       if (currentPosition==0){
-        ledRing.startAnimation(LEDRING_RETURN_MAIN_MENU, currentPosition, initialTimer, 5);
+        // ledRing.startAnimation(LEDRING_RETURN_MAIN_MENU, currentPosition, initialTimer, 5);
         currentState = STATE_MODE_SELECT;
         input.setPosition(5);
         currentPosition = input.getPosition();
@@ -357,7 +359,7 @@ void StateController::update(DisplayController& display,
       buttonFeedback(piezo);
       currentState = STATE_STOPWATCH_PAUSED;
       display.animation.start(play_pause, 19, false, true);
-      ledRing.startAnimation(LEDRING_PAUSE_TIMER, currentTimer, initialTimer, currentPosition);
+      ledRing.startAnimation(LEDRING_PAUSE_TIMER, currentTimer, initialTimer, currentPosition, 20);
     }
     break;
 
@@ -367,7 +369,7 @@ void StateController::update(DisplayController& display,
       buttonFeedback(piezo);
       currentState = STATE_STOPWATCH_RUN;
       display.animation.start(play_pause, 19);
-      ledRing.startAnimation(LEDRING_START_TIMER, currentTimer, initialTimer, currentPosition);
+      ledRing.startAnimation(LEDRING_START_TIMER, currentTimer, initialTimer, currentPosition, 20);
       timeNow = millis(); // Reset timeNow to current time
     }
 
@@ -403,7 +405,7 @@ void StateController::update(DisplayController& display,
       switch (currentPosition)
       {
       case 0:
-        input.setPosition(piezo.muted ? 1 : 0);
+        input.setPosition(piezo.sound_level);
         break;
       
       case 1:
@@ -439,6 +441,8 @@ void StateController::update(DisplayController& display,
     newPosition = input.getPosition();
     if (newPosition != currentPosition)
     {
+      if (newPosition < 0) newPosition = 2;
+      if (newPosition > 2) newPosition = 0;
       currentPosition = newPosition;
       rotaryFeedback(piezo);
       input.setPosition(newPosition);
@@ -447,8 +451,8 @@ void StateController::update(DisplayController& display,
     if (input.lastAction == BUTTON_LONG_PRESS)
     {
       currentState = STATE_SETTINGS;
-      piezo.muted = newPosition % 2 == 0; // Toggle piezo mute state
-      EEPROM.writeBool(EEPROM_PIEZO_MUTE_ADDR, piezo.muted ? 1 : 0);
+      piezo.sound_level= newPosition; // Toggle piezo mute state
+      EEPROM.writeUChar(EEPROM_PIEZO_MUTE_ADDR, piezo.sound_level);
       EEPROM.commit();
       input.setPosition(0);
       currentPosition = input.getPosition();
@@ -459,8 +463,14 @@ void StateController::update(DisplayController& display,
     newPosition = input.getPosition();
     if (newPosition != currentPosition)
     {
-      if (newPosition < 0) newPosition = 0;
-      if (newPosition > 25) newPosition = 25;
+      if (newPosition < 0) {
+        newPosition = 0;
+        ledRing.startAnimation(LEDRING_SETTINGS_LIMIT, 5);
+      }
+      if (newPosition > 25){
+        newPosition = 25;
+        ledRing.startAnimation(LEDRING_SETTINGS_LIMIT, 5);
+      }
       currentPosition = newPosition;
       display.setBrightness(currentPosition*10);
       rotaryFeedback(piezo);
@@ -481,8 +491,14 @@ void StateController::update(DisplayController& display,
     newPosition = input.getPosition();
     if (newPosition != currentPosition)
     {
-      if (newPosition < 0) newPosition = 0;
-      if (newPosition > 10) newPosition = 10;
+      if (newPosition < 0) {
+        newPosition = 0;
+        ledRing.startAnimation(LEDRING_SETTINGS_LIMIT, 5);
+      }
+      if (newPosition > 10) {
+        newPosition = 10;
+        ledRing.startAnimation(LEDRING_SETTINGS_LIMIT, 5);
+      }
       currentPosition = newPosition;
       ledRing.setBrightness(currentPosition*10);
       rotaryFeedback(piezo);
@@ -536,8 +552,14 @@ void StateController::update(DisplayController& display,
     newPosition = input.getPosition();
     if (newPosition != currentPosition)
     {
-      if (newPosition < 0) newPosition = 0;
-      if (newPosition > 10) newPosition = 10;
+      if (newPosition < 1) {
+        newPosition = 1;
+        ledRing.startAnimation(LEDRING_SETTINGS_LIMIT, 5);
+      }
+      if (newPosition > 10){
+        newPosition = 10;
+        ledRing.startAnimation(LEDRING_SETTINGS_LIMIT, 5);
+      }
       currentPosition = newPosition;
       rotaryFeedback(piezo);
       input.setPosition(newPosition);
@@ -558,8 +580,14 @@ void StateController::update(DisplayController& display,
     newPosition = input.getPosition();
     if (newPosition != currentPosition)
     {
-      if (newPosition < 10) newPosition = 10;
-      if (newPosition > 60) newPosition = 60;
+      if (newPosition < 10) {
+        newPosition = 10;
+        ledRing.startAnimation(LEDRING_SETTINGS_LIMIT, 5);
+      }
+      if (newPosition > 60) {
+        newPosition = 60;
+        ledRing.startAnimation(LEDRING_SETTINGS_LIMIT, 5);
+      }
       currentPosition = newPosition;
       rotaryFeedback(piezo);
       input.setPosition(newPosition);
@@ -628,18 +656,23 @@ void StateController::enterDeepSleep(DisplayController& display, LedRingControll
     int encoder2State = digitalRead(ENCODER_PIN2);
 
     // Add button wake-up condition
-    esp_sleep_enable_ext1_wakeup(1 << SWITCH_PIN, ESP_EXT1_WAKEUP_ANY_LOW);
-    // esp_deep_sleep_enable_gpio_wakeup(1 << ENCODER_SWITCH, ESP_GPIO_WAKEUP_GPIO_LOW);
+    #ifdef DEVICE_VARIANT_H2
+      esp_sleep_enable_ext1_wakeup(1 << SWITCH_PIN, ESP_EXT1_WAKEUP_ANY_LOW);
+    #endif
 
-    // Go to deep sleep
+    #ifdef DEVICE_VARIANT_C3
+      esp_deep_sleep_enable_gpio_wakeup(1 << SWITCH_PIN, ESP_GPIO_WAKEUP_GPIO_LOW);
+    #endif
+
+    // Go to sleep
     delay(50);
     esp_deep_sleep_start();
 }
 
 void StateController::buttonFeedback(PiezoController& piezo) {
   Serial.println("Button pressed");
-  if (!piezo.muted) {
-      piezo.startMelody(rotaryUpMelody);
+  if (piezo.sound_level > 1) {
+      piezo.beep(NOTE_A6, 50);
   }
   lastInteractionTimer = millis();
 }
@@ -647,8 +680,8 @@ void StateController::buttonFeedback(PiezoController& piezo) {
 void StateController::rotaryFeedback(PiezoController& piezo) {
   Serial.print("Rotary encoder moved to position: ");
   Serial.println(currentPosition);
-  if (!piezo.muted) {
-      piezo.startMelody(rotaryUpMelody);
+  if (piezo.sound_level > 1) {
+      piezo.beep(NOTE_A6, 50);
   }
   lastInteractionTimer = millis();
 }

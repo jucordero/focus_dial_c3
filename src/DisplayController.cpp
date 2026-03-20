@@ -1,7 +1,7 @@
 #include "DisplayController.h"
 #include "bitmaps.h"
 #include <EEPROM.h>
-#include "config.h"
+#include HW_CONFIG
 
 #ifdef U8X8_HAVE_HW_SPI
 #include <SPI.h>
@@ -27,7 +27,7 @@ DisplayController::DisplayController(int pinSDA, int pinSCL)
 void DisplayController::begin(int){
     Wire.begin(pinSDA, pinSCL);
     u8g2.begin();
-    u8g2.setContrast(brightness);
+    // u8g2.setContrast(brightness);
 }
 
 /**
@@ -128,11 +128,6 @@ void DisplayController::update(
         }
         drawBatteryLevel();
 
-        if (EEPROM.readBool(EEPROM_PIEZO_MUTE_ADDR))
-            u8g2.drawXBM(115, 2, 12, 12, sound_off_icon);
-        else
-            u8g2.drawXBM(115, 2, 12, 12, sound_on_icon);
-
         if (digitalRead(SWITCH_PIN)==LOW){
             u8g2.setDrawColor(2);
             u8g2.drawBox(0,0,128,32);
@@ -160,13 +155,13 @@ void DisplayController::drawTimeScreen(long int timer) {
     long int ss = toSeconds % 60;
 
     char timeStr[6];
-    u8g2.setFont(u8g2_font_logisoso32_tn);
+    u8g2.setFont(Fonts::LargeNumber);
     sprintf(timeStr, "%02ld:%02ld", mm, ss);
     u8g2.drawStr(0, 32, timeStr);
 
     char tensOfSecondsStr[2];
     sprintf(tensOfSecondsStr, "%1ld", (timer % 1000) / 100);
-    u8g2.setFont(u8g2_font_logisoso16_tn);
+    u8g2.setFont(Fonts::MediumText);
     u8g2.drawStr(91, 32, tensOfSecondsStr);
 
     // u8g2.drawXBMP(113, 14, 15, 16, image_download_bits);
@@ -177,7 +172,7 @@ void DisplayController::drawWifiSelect(long int timer) {
     u8g2.setFontMode(1);
     u8g2.setBitmapMode(1);
 
-    u8g2.setFont(u8g2_font_logisoso18_tr);
+    u8g2.setFont(Fonts::MediumText);
     u8g2.setCursor(0, 20);
 
     switch (timer){
@@ -197,7 +192,6 @@ void DisplayController::drawWifiSelect(long int timer) {
         default:
             break;
         }
-
 }
 
 void DisplayController::drawAudioSettings(long int position)
@@ -205,46 +199,43 @@ void DisplayController::drawAudioSettings(long int position)
     u8g2.setFontMode(1);
     u8g2.setBitmapMode(1);
 
-    u8g2.setFont(u8g2_font_profont12_tf);
+    u8g2.setFont(Fonts::SmallText);
     u8g2.setCursor(0, 12);
     u8g2.print("Sound");
     
-    u8g2.setFont(u8g2_font_logisoso18_tr);
+    u8g2.setFont(Fonts::MediumText);
     u8g2.setCursor(0, 32);
-    if (position % 2 == 0)
-        u8g2.print("muted");
-    else
-        u8g2.print("not muted");
+
+    switch (position)
+    {
+    case 0:
+        u8g2.print("Muted");
+        break;
+
+    case 1:
+        u8g2.print("Alarms");
+        break;
+
+    case 2:
+        u8g2.print("All sounds");
+        break;
+
+    default:
+        break;
+    }
+
 }
 
 void DisplayController::drawDisplaySettings(long int position)
 {
-    u8g2.setFontMode(1);
-    u8g2.setBitmapMode(1);
-
-    u8g2.setFont(u8g2_font_profont12_tf);
-    u8g2.setCursor(0, 12);
-    u8g2.print("Display brightness");
-    
-    u8g2.setFont(u8g2_font_logisoso18_tr);
-    u8g2.setCursor(0, 32);
-        u8g2.print(position*10);
-        u8g2.print("%");
+    String valueText = String(position * 10) + "%";
+    drawSettingsText("Display brightness", valueText.c_str());
 }
 
 void DisplayController::drawLedringSettings(long int position)
 {
-    u8g2.setFontMode(1);
-    u8g2.setBitmapMode(1);
-
-    u8g2.setFont(u8g2_font_profont12_tf);
-    u8g2.setCursor(0, 12);
-    u8g2.print("Ring brightness");
-    
-    u8g2.setFont(u8g2_font_logisoso18_tr);
-    u8g2.setCursor(0, 32);
-        u8g2.print(position*10);
-        u8g2.print("%");
+    String valueText = String(position * 10) + "%";
+    drawSettingsText("Ring brightness", valueText.c_str());
 }
 
 void DisplayController::drawTimerSettings(long int position)
@@ -252,11 +243,11 @@ void DisplayController::drawTimerSettings(long int position)
     u8g2.setFontMode(1);
     u8g2.setBitmapMode(1);
 
-    u8g2.setFont(u8g2_font_profont12_tf);
+    u8g2.setFont(Fonts::SmallText);
     u8g2.setCursor(0, 12);
     u8g2.print("Timer settings");
 
-    u8g2.setFont(u8g2_font_logisoso18_tr);
+    u8g2.setFont(Fonts::MediumText);
     u8g2.setCursor(0, 32);
 
     if (position%2 == 0)
@@ -268,62 +259,33 @@ void DisplayController::drawTimerSettings(long int position)
 
 void DisplayController::drawTimerSettingsCW(long int position)
 {
-    u8g2.setFontMode(1);
-    u8g2.setBitmapMode(1);
-
-    u8g2.setFont(u8g2_font_profont12_tf);
-    u8g2.setCursor(0, 12);
-    u8g2.print("CW step");
-
-    u8g2.setFont(u8g2_font_logisoso18_tr);
-    u8g2.setCursor(0, 32);
-
-    u8g2.print(position*1000);
-    u8g2.print("ms");
+    String valueText = String(position * 1000) + "ms";
+    drawSettingsText("CW step", valueText.c_str());
 
 }
 
 void DisplayController::drawTimerSettingsCCW(long int position)
 {
-    u8g2.setFontMode(1);
-    u8g2.setBitmapMode(1);
-
-    u8g2.setFont(u8g2_font_profont12_tf);
-    u8g2.setCursor(0, 12);
-    u8g2.print("CCW step");
-
-    u8g2.setFont(u8g2_font_logisoso18_tr);
-    u8g2.setCursor(0, 32);
-
-    u8g2.print(position*1000);
-    u8g2.print("ms");
+    String valueText = String(position * 1000) + "ms";
+    drawSettingsText("CCW step", valueText.c_str());
 }
 
 void DisplayController::drawSettings(long int position)
 {
-    u8g2.setFontMode(1);
-    u8g2.setBitmapMode(1);
-
-    u8g2.setFont(u8g2_font_profont12_tf);
-    u8g2.setCursor(0, 12);
-    u8g2.print("Settings");
-
-    u8g2.setFont(u8g2_font_logisoso18_tr);
-    u8g2.setCursor(0, 32);
 
     switch (position)
     {
     case 0:
-        u8g2.print("Sound");
+        drawSettingsText("Settings", "Sound");
         break;
     case 1:
-        u8g2.print("Display");
+        drawSettingsText("Settings", "Display");
         break;
     case 2:
-        u8g2.print("Ledring");
+        drawSettingsText("Settings", "LED ring");
         break;
     case 3:
-        u8g2.print("Timer");
+        drawSettingsText("Settings", "Timer");
         break;
     
     default:
@@ -338,7 +300,7 @@ void DisplayController::drawInfo() {
     char ssid[32]; // Buffer to store the SSID
     EEPROM.get(0, ssid); // Read the SSID from EEPROM starting at address 0
 
-    u8g2.setFont(u8g2_font_logisoso18_tr);
+    u8g2.setFont(Fonts::MediumText);
     u8g2.setCursor(0, 20);
     u8g2.print("SSID:");
     u8g2.setCursor(0, 40);
@@ -359,14 +321,36 @@ void DisplayController::sleepScreen(){
 
 void DisplayController::drawBatteryLevel() {
 
+    u8g2.setFont(Fonts::Symbols);
+    switch (EEPROM.readUChar(EEPROM_PIEZO_MUTE_ADDR))
+    {
+
+    case 0:
+        u8g2.drawGlyph(107, 21, 326); // Sound off icon
+        break;
+        
+    case 1:
+        u8g2.drawGlyph(107, 21, 433); // Alarms only icon
+        break;
+
+    case 2:
+        u8g2.drawGlyph(107, 21, 484); // Sound on icon
+        break;
+
+    default:
+        break;
+    }
+
     int level = analogRead(BATTERY_PIN);
     int c_level = constrain(level, BATTERY_LOW_LEVEL, BATTERY_HIGH_LEVEL); 
     int batPctg = map(c_level, BATTERY_LOW_LEVEL, BATTERY_HIGH_LEVEL, 0, 100);
 
-    u8g2.setFont(u8g2_font_profont12_tf);
+    u8g2.setFont(Fonts::SmallText);
     char batStr[5];
     snprintf(batStr, sizeof(batStr), "%d%%", batPctg);
     u8g2.drawStr(110, 32, batStr);
+    // u8g2.setCursor(90, 32);
+    // u8g2.print(level);
 
     // u8g2.setFont(u8g2_font_blipfest_07_tn);
     // char levelStr[6];
@@ -375,5 +359,19 @@ void DisplayController::drawBatteryLevel() {
 
     // u8g2.drawXBM(115, 16, 12, 15, battery_base);
     // Serial.println(analogRead(BATTERY_PIN));
+
+}
+
+void DisplayController::drawSettingsText(const char* headText, const char* valueText) {
+    u8g2.setFontMode(1);
+    u8g2.setBitmapMode(1);
+
+    u8g2.setFont(Fonts::SmallText);
+    u8g2.setCursor(0, 12);
+    u8g2.print(headText);
+
+    u8g2.setFont(Fonts::MediumText);
+    u8g2.setCursor(0, 32);
+    u8g2.print(valueText);
 
 }

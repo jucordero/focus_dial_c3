@@ -4,7 +4,7 @@
 #include <Adafruit_NeoPixel.h>
 #include "SystemState.h"
 #include "LedRingAnimations.h"
-#include "config.h"
+#include HW_CONFIG
 
 class LedRingController {
 public:
@@ -17,7 +17,8 @@ public:
     void LedRingTimeCountdown(long int timer, long int initialTimer, long int encoder);
     void LedRingCountdownPaused(long int timer, long int initialTimer, long int encoder);
     void LedRingStopwatchRun(long int timer);
-    void LedRingModeSelect(long int encoder);
+    void LedRingModeSelect(long int encoder, uint8_t nModes);
+    void LedRingSettingsSelect(long int encoder, uint8_t nMax, uint8_t nMin);
     void LedRingSleep();
 
     void setBrightness(int brightness) {
@@ -36,10 +37,14 @@ public:
     int brightness;
 
     bool animationRunning;
-    void startAnimation(ledRingAnimation animation, long int timer, long int initialTimer, long int encoder);
+    void startAnimation(ledRingAnimation animation, long int timer, long int initialTimer, long int encoder, int totalFrames);
+    void startAnimation(ledRingAnimation animation, int totalFrames);
+    
     void updateAnimation();
     void fadeBetweenStates(uint32_t* initialState, uint32_t* endState);
     void pulseBetweenStates(uint32_t* initialState, uint32_t* endState);
+    void LedRingShortSinglePulse(uint32_t color);
+
     ledRingAnimation animation;
 
     int timeScale(long int encoder);

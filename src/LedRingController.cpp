@@ -1,15 +1,13 @@
 #include "LedRingController.h"
 #include <Adafruit_NeoPixel.h>
-#include "config.h"
+#include HW_CONFIG
 #include "EEPROM.h"
 
 LedRingController::LedRingController(int numLeds, int ledPin)
   : numLeds(numLeds),
     ledPin(ledPin),
     strip(numLeds, ledPin, NEO_GRB + NEO_KHZ800)
-{
-    // No need to manually allocate CRGB array anymore
-}
+{}
 
 void LedRingController::begin(int brightness) {
     strip.begin();
@@ -43,13 +41,25 @@ void LedRingController::update(SystemState state, long int encoder, long int tim
       LedRingStopwatchRun(timer);
       break;
     case STATE_MODE_SELECT:
-      LedRingModeSelect(abs(encoder));
+      LedRingModeSelect(abs(encoder), 6);
       break;
     case STATE_SETTINGS_LEDRING:
       LedringSingleColor(strip.Color(255, 255, 255));
       break;
     case STATE_SETTINGS:
-      LedringSingleColor(strip.Color(0, 0, 0));
+      LedRingModeSelect(abs(encoder), 4);
+      break;
+    case STATE_SETTINGS_TIMER:
+      LedRingModeSelect(abs(encoder), 2);
+      break;
+    case STATE_SETTINGS_TIMER_CW:
+      LedRingSettingsSelect(encoder, 10, 1);
+      break;
+    case STATE_SETTINGS_TIMER_CCW:
+      LedRingSettingsSelect(encoder, 60, 10);
+      break;
+    case STATE_SETTINGS_DISPLAY:
+      LedRingSettingsSelect(encoder, 25, 0);
       break;
 
     default:
@@ -58,11 +68,13 @@ void LedRingController::update(SystemState state, long int encoder, long int tim
   }
 }
 
-void LedRingController::startAnimation(ledRingAnimation anim, long int timer, long int initialTimer, long int encoder){
+// Start an animation for transition between states with timer and encoder parameters
+void LedRingController::startAnimation(ledRingAnimation anim, long int timer, long int initialTimer, long int encoder, int totalFrames){
   animationRunning = true;
   animation = anim;
   currentFrame = 0;
   animationStartTime = millis();
+  this->totalFrames = totalFrames;
 
   // Populate initialState with the current LED state
   for (int i = 0; i < numLeds; i++) {
@@ -73,38 +85,29 @@ void LedRingController::startAnimation(ledRingAnimation anim, long int timer, lo
   switch (anim)
   {
   case LEDRING_PAUSE_TIMER:
-    totalFrames = 20;
-    // assign single color ring in counting state to endState
     singleColorRingCounting(timer, initialTimer, encoder < 0, strip.Color(255, 255, 0), endState);
     break;
 
   case LEDRING_START_TIMER:
-    totalFrames = 20;
-    // assign single color ring in counting state to endState
     singleColorRingCounting(timer, initialTimer, encoder < 0, strip.Color(255, 0, 0), endState);
     break;
 
   case LEDRING_FINISHED_TIMER:
-    // assign single color ring initialState and endState
     singleColorRing(strip.Color(0, 0, 0), initialState);
     singleColorRing(strip.Color(255, 255, 255), endState);
     break;
 
   case LEDRING_RETURN_MAIN_MENU:
-    totalFrames = 10;  
     for (int i = abs(encoder)%8*2; i < abs(encoder)%8*2+2; i++){
       endState[i] = strip.Color(0, 255, 255);
     }
     break;
 
   case LEDRING_PREPARE_SLEEP:
-    totalFrames = 20;
-    // assign single color ring in counting state to endState
     singleColorRing(strip.Color(0, 0, 0), endState);
     break;
 
   case LEDRING_MODE_SELECT:
-    totalFrames = 10;
     singleColorRing(strip.Color(0, 0, 0), endState);
     break;
 
@@ -114,6 +117,16 @@ void LedRingController::startAnimation(ledRingAnimation anim, long int timer, lo
   }
 }
 
+// Start animation for animations that don't require timer and encoder parameters
+void LedRingController::startAnimation(ledRingAnimation anim, int totalFrames){
+  animationRunning = true;
+  animation = anim;
+  currentFrame = 0;
+  animationStartTime = millis();
+  this->totalFrames = totalFrames;
+}
+
+// Update the LED ring animation based on the current animation state and frame
 void LedRingController::updateAnimation(){
 
   if (millis() - lastFrameTime < frameDelay){
@@ -146,9 +159,34 @@ void LedRingController::updateAnimation(){
     fadeBetweenStates(initialState, endState);
     break;
 
+  case LEDRING_SETTINGS_LIMIT:
+    LedRingShortSinglePulse(strip.Color(255, 255, 255));
+    break;
+
+  case LEDRING_PULSE_FLASH:
+    LedRingShortSinglePulse(strip.Color(255, 255, 255));
+    break;
+
   default:
     break;
   }
+}
+
+// ------------------------------------------------------
+// Static ledring states for different modes and settings
+// ------------------------------------------------------
+
+void LedRingController::LedRingSettingsSelect(long int encoder, uint8_t nMax, uint8_t nMin){
+  strip.clear();
+  unsigned int endPos = numLeds*(encoder-nMin)/(nMax-nMin);
+
+  if (endPos > numLeds) endPos = numLeds;
+  if (endPos == 0) endPos = 1;
+
+  for (int i = 0; i < endPos; i++){
+    strip.setPixelColor(i, 255, 255, 255);
+  }
+  strip.show();
 }
 
 void LedRingController::LedRingTimeScreen(long int timer, long int encoder){
@@ -199,6 +237,29 @@ void LedRingController::LedRingSleep(){
     strip.show();
 }
 
+void LedRingController::LedRingModeSelect(long int encoder, uint8_t nModes){
+  strip.clear();
+  int nSelLeds = numLeds/nModes;
+  unsigned int initPos = abs(encoder)%nModes*nSelLeds;
+  
+  for (int i = initPos; i < initPos+nSelLeds; i++){
+    strip.setPixelColor(i, 0, 255, 255);
+  }
+  strip.show();
+}
+
+
+// ---------------------------------------------------
+// Transition states with timer and encoder parameters
+// ---------------------------------------------------
+
+void LedRingController::LedRingShortSinglePulse(uint32_t color){
+  LedringSingleColor(color);
+  currentFrame++;
+
+  if (currentFrame > totalFrames)
+    animationRunning = false;
+}
 
 void LedRingController::fadeBetweenStates(uint32_t* initialState, uint32_t* endState){
   strip.clear();
@@ -220,15 +281,9 @@ void LedRingController::pulseBetweenStates(uint32_t* initialState, uint32_t* end
   strip.show();
 }
 
-void LedRingController::LedRingModeSelect(long int encoder){
-  strip.clear();
-  unsigned int initPos = abs(encoder)%6*4;
-  
-  for (int i = initPos; i < initPos+4; i++){
-    strip.setPixelColor(i, 0, 255, 255);
-  }
-  strip.show();
-}
+// -------------------------------------------
+// Helper functions for LED state calculations
+// -------------------------------------------
 
 /**
  * @brief Calculates a time scale factor based on the encoder value.

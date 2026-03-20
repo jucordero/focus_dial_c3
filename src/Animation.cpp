@@ -1,10 +1,8 @@
 #include <Arduino.h>
 #include "Animation.h"
-#include "config.h"
+#include HW_CONFIG
 
-// Animation::Animation(U8G2_SSD1306_128X64_NONAME_F_HW_I2C* display) : u8g2(display), animationRunning(false), playInReverse(false) {}
-// Animation::Animation(U8G2_SSD1306_128X32_WINSTAR_F_HW_I2C* display) : u8g2(display), animationRunning(false), playInReverse(false) {}
-Animation::Animation(U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C* display) : u8g2(display), animationRunning(false), playInReverse(false) {}
+Animation::Animation(DisplayType* display) : u8g2(display), animationRunning(false), playInReverse(false) {}
 
 /**
  * Starts the animation with the provided frames, duration, and other parameters.
