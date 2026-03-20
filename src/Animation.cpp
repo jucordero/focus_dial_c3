@@ -1,7 +1,8 @@
 #include <Arduino.h>
 #include "Animation.h"
+#include HW_CONFIG
 
-Animation::Animation(U8G2_SSD1306_128X64_NONAME_F_HW_I2C* display) : u8g2(display), animationRunning(false), playInReverse(false) {}
+Animation::Animation(DisplayType* display) : u8g2(display), animationRunning(false), playInReverse(false) {}
 
 /**
  * Starts the animation with the provided frames, duration, and other parameters.
@@ -15,7 +16,6 @@ Animation::Animation(U8G2_SSD1306_128X64_NONAME_F_HW_I2C* display) : u8g2(displa
  * @param height The height of each animation frame.
  */
 void Animation::start(const unsigned char frames[][BITMAP_LENGTH], int frameCount, bool loop, bool reverse, unsigned long durationMs, int width, int height) {
-    Serial.println("Starting animation");
     animationFrames = frames;
     totalFrames = frameCount;
     loopAnimation = loop;
@@ -59,7 +59,6 @@ void Animation::update() {
 
     if (currentTime - animationStartTime >= animationDuration && !loopAnimation) {
         animationRunning = false;
-        Serial.println("Animation finished");
         return;
     }
 
@@ -75,7 +74,6 @@ void Animation::update() {
                     currentFrame = totalFrames - 1; // Wrap around to last frame
                 } else {
                     animationRunning = false;
-                    Serial.println("Animation finished");
                     return;
                 }
             }
@@ -86,7 +84,6 @@ void Animation::update() {
                     currentFrame = 0; // Wrap around to first frame
                 } else {
                     animationRunning = false;
-                    Serial.println("Animation finished");
                     return;
                 }
             }
@@ -95,6 +92,13 @@ void Animation::update() {
         // Display the current frame
         u8g2->clearBuffer();
         u8g2->drawXBM(frameX, frameY, frameWidth, frameHeight, animationFrames[currentFrame]);
+        
+        if (digitalRead(SWITCH_PIN)==LOW){
+            u8g2->setDrawColor(2);
+            u8g2->drawBox(0,0,128,32);
+            u8g2->setDrawColor(1);
+        }
+
         u8g2->sendBuffer();
 
         

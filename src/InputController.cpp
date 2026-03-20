@@ -1,12 +1,12 @@
 #include <Arduino.h>
 #include "InputController.h"
-#include "config.h"
+#include HW_CONFIG
 
 InputController::InputController(int pinEncoder1, int pinEncoder2, int pinButton)
     : pinEncoder1(pinEncoder1),
       pinEncoder2(pinEncoder2),
       pinButton(pinButton),
-      encoder(RotaryEncoder(pinEncoder1, pinEncoder2, RotaryEncoder::LatchMode::TWO03)) {}
+      encoder(pinEncoder1, pinEncoder2, -1, -1, 2) {}
 
 void InputController::begin() {
     pinMode(pinButton, INPUT_PULLUP);
@@ -14,8 +14,12 @@ void InputController::begin() {
     bounce.interval(5);
     buttonHeld = false;
     
+    encoder.setEncoderType(EncoderType::FLOATING);
+    encoder.setBoundaries(-1000, 1000, true);
+    encoder.begin();
+
     // Retain the previous position value. This is defined as an extern variable in config and main
-    encoder.setPosition(previousPosition);
+    encoder.setEncoderValue(previousPosition);
 }
 
 void InputController::update() {
@@ -44,21 +48,16 @@ void InputController::update() {
         lastAction = BUTTON_SHORT_PRESS;
     }
 
-    // Update the rotary encoder state
-    encoder.tick();
-    long int newPosition = encoder.getPosition();
-
-    if (newPosition != currentPosition) {
-        currentPosition = newPosition;
-        if (newPosition > previousPosition) {
-            lastAction = ROTARY_CW_TICK;
-        } else {
-            lastAction = ROTARY_CCW_TICK;
-        }
-    }
+    // Check for rotary encoder movement
+    long int newPosition = encoder.getEncoderValue();
 }
 
 long int InputController::getPosition() {
     return currentPosition;
+}
+
+void InputController::setPosition(long int pos) {
+    encoder.setEncoderValue(pos);
+    currentPosition = pos;
 }
 

@@ -8,7 +8,7 @@ class PiezoController {
 public:
     PiezoController(int buzzerPin);
 
-    void begin(bool muted = false);
+    void begin(uint8_t sound_level = 0);
     void update(SystemState state);
 
     int buzzerPin;
@@ -17,10 +17,13 @@ public:
     bool melodyRunning;
     void startMelody(Melody melody);
     void updateMelody();
-    void stopMelody();  
+    void stopMelody();
+    void beep(int frequency, int duration);
+
     Melody melody;
 
-    bool muted = false;
+    // 0 = muted, 1 = alarms only, 2 = all sounds
+    uint8_t sound_level = 0;
 
     int currentNote;
 };

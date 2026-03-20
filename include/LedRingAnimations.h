@@ -4,6 +4,7 @@
 #include <Arduino.h>
 
 enum ledRingAnimation {
+
     LEDRING_START_TIMER,
     LEDRING_STOP_TIMER,
     LEDRING_PAUSE_TIMER,
@@ -12,6 +13,8 @@ enum ledRingAnimation {
     LEDRING_RETURN_MAIN_MENU,
     LEDRING_PREPARE_SLEEP,
     LEDRING_MODE_SELECT,
+    LEDRING_SETTINGS_LIMIT,
+    LEDRING_PULSE_FLASH,
 };
 
 #endif

@@ -1,7 +1,7 @@
 #ifndef INPUT_CONTROLLER_H
 #define INPUT_CONTROLLER_H
 
-#include <RotaryEncoder.h>
+#include <ESP32RotaryEncoder.h>
 #include <Bounce2.h>
 
 enum InputAction {
@@ -19,6 +19,7 @@ public:
     void update();
 
     long int getPosition();
+    void setPosition(long int pos);
     long int currentPosition;
 
     bool buttonHeld;
